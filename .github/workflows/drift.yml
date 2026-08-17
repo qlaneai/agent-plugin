@@ -1,0 +1,24 @@
+name: Drift
+
+# Scheduled and manual only — never on push or pull_request. This job asserts
+# agreement with a LIVE production endpoint, so a production blip must not be
+# able to block a docs change. It is also the only check in this repo that can
+# see a change made outside it.
+on:
+  schedule: [{ cron: "17 6 * * *" }]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:live

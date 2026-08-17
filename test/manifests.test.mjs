@@ -121,6 +121,18 @@ test("README.md exists and is not empty", () => {
   assert.ok(readme.trim().length > 0, "README.md must exist and be non-empty")
 })
 
+test("the portable manifest points at one of the registered remotes", () => {
+  // Local half of the drift check, so it runs on every PR rather than only on
+  // drift.yml's schedule: the network test pins server.json to production, and
+  // this pins mcp.json to server.json. A regional host renamed in one file and
+  // not the other fails here within the same commit.
+  const url = read("mcp.json").mcpServers[SERVER_NAME].url
+  assert.ok(
+    read("server.json").remotes.some((r) => r.url === url),
+    `mcp.json url ${url} is not among server.json's remotes`
+  )
+})
+
 test("the marketplace is named `qlane`, so `qlane@qlane` installs", () => {
   // The README documents `claude plugin install qlane@qlane`, where the half after
   // the `@` is the MARKETPLACE name, not the plugin name. Renaming the marketplace

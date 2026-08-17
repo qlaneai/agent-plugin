@@ -18,10 +18,39 @@ const CHECKS = [
     draft: "2020",
     id: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   },
+  {
+    // The MCP Registry entry. Its `version` is the SERVER's, not the plugin
+    // package's — the schema calls it "Equivalent of Implementation.version".
+    // The two are meant to differ; see scripts/version-audit.mjs. (Neither
+    // literal is written out here: scripts/version-audit.mjs fails any tracked
+    // file that carries the plugin version and is not on its declared list,
+    // and prose counts.)
+    doc: "server.json",
+    schema: "schemas/mcp-registry-2025-12-11-server.schema.json",
+    // Upstream publishes this one against draft-07, not 2020-12. Compiling a
+    // draft-07 schema with the 2020-12 Ajv build silently changes what `$ref`
+    // and `items` mean, so the draft is per-check rather than global.
+    draft: "07",
+    id: "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+    // Upstream generates this schema from an OpenAPI document, which leaves
+    // `example` (singular — the OpenAPI spelling, not JSON Schema's `examples`)
+    // on ~30 subschemas. Under `strict: true` an undeclared keyword is a hard
+    // compile error, so it is declared here as the annotation it is. Declaring
+    // it per-check rather than turning strict off keeps a genuine typo in OUR
+    // two schemas loud.
+    annotations: ["example"],
+    // `strictRequired` is OFF by default in Ajv and only switched on by
+    // `strict: true`. Upstream's Argument/Input definitions `require` a property
+    // that a sibling allOf branch declares — legal JSON Schema, rejected only by
+    // this one opinionated sub-option. Relaxing the single sub-option keeps the
+    // rest of strict mode (unknown keywords, bad types, ignored `$ref` siblings)
+    // enforced on this schema; `strict: false` would not.
+    ajvOptions: { strictRequired: false },
+  },
 ]
 
 let failed = false
-for (const { doc, schema, draft, id } of CHECKS) {
+for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHECKS) {
   if (!existsSync(doc)) {
     console.error(`✗ ${doc} — missing`)
     failed = true
@@ -52,8 +81,13 @@ for (const { doc, schema, draft, id } of CHECKS) {
     const Ajv = draft === "2020" ? (Ajv2020.default ?? Ajv2020) : (Ajv07.default ?? Ajv07)
     // strict: true so a mistyped keyword (e.g. "additionalProperies") is a hard
     // error rather than a silently ignored no-op that weakens the schema.
-    const ajv = new Ajv({ allErrors: true, strict: true })
+    // strict stays first so a per-check entry can only ever RELAX a named
+    // sub-option, and the relaxation is visible in CHECKS next to its reason.
+    const ajv = new Ajv({ allErrors: true, strict: true, ...ajvOptions })
     addFormats.default ? addFormats.default(ajv) : addFormats(ajv)
+    // Annotation-only: no `code`/`validate`, so it constrains nothing and only
+    // stops strict mode from rejecting the vendored schema at compile time.
+    for (const keyword of annotations) ajv.addKeyword({ keyword })
     const validate = ajv.compile(schemaDoc)
     reading = doc
     if (validate(read(doc))) {
