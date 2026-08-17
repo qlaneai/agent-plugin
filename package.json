@@ -5,7 +5,7 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "validate": "node scripts/validate.mjs",
-    "test": "node --test test/",
+    "test": "node --test",
     "check": "npm run validate && npm run test"
   },
   "devDependencies": {
