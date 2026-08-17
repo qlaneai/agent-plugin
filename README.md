@@ -58,14 +58,22 @@ EU-pinned manifest otherwise.
 
 ### Codex
 
+Codex splits this across two places: you register the marketplace on the CLI, but you install
+from it in the ChatGPT desktop app. There is no CLI install command.
+
 ```bash
 codex plugin marketplace add qlaneai/agent-plugin
-codex plugin install qlane
+```
+
+Then open the **Plugins Directory** in the ChatGPT desktop app and install `qlane` from it.
+Once it is installed, authenticate the server:
+
+```bash
 codex mcp login qlane
 ```
 
-Installed plugins are also browsable with `/plugins`. The sign-in step is separate on purpose:
-installing the plugin registers the server but does not authenticate it.
+Sign-in is a separate step on purpose: installing the plugin registers the server but does not
+authenticate it.
 
 ## Opening this repository in Claude Code
 
