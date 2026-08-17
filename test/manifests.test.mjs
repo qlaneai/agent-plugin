@@ -7,7 +7,17 @@ import { readFileSync } from "node:fs"
 const read = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"))
 const ENDPOINT_PATH = "/api/mcp"
 const EU_HOST = "mcp-eu.qlane.ai"
+const US_HOST = "mcp-us.qlane.ai"
 const SERVER_NAME = "qlane"
+// The spec transport value. Claude Code's own manifest uses "http" instead —
+// see the two transport tests below — but the Registry entry follows the spec.
+const REMOTE_TYPE = "streamable-http"
+
+// Compared as {type, url} pairs, never urls alone: a remote silently switched to
+// "sse" keeps its url and would pass a url-only comparison here AND in the live
+// test, against real production.
+const endpoints = (o) =>
+  o.remotes.map(({ type, url }) => ({ type, url })).sort((a, b) => (a.url < b.url ? -1 : 1))
 
 test("portable and Claude Code manifests name the same server", () => {
   // deepEqual against the literal key list also rules out an EMPTY mcpServers object,
@@ -119,6 +129,18 @@ test("README.md exists and is not empty", () => {
   // gate non-vacuous, so it belongs in the suite rather than in the linter's config.
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8")
   assert.ok(readme.trim().length > 0, "README.md must exist and be non-empty")
+})
+
+test("server.json registers BOTH regions, as streamable-http", () => {
+  // Pinned to the two-element literal, not merely "contains EU": every other
+  // assertion here is satisfied by the EU remote alone, so dropping the US
+  // remote from server.json passed the entire offline gate before this test
+  // existed — and the Registry entry is the only place the US endpoint is
+  // published to clients that do not read our dashboard.
+  assert.deepEqual(endpoints(read("server.json")), [
+    { type: REMOTE_TYPE, url: `https://${EU_HOST}${ENDPOINT_PATH}` },
+    { type: REMOTE_TYPE, url: `https://${US_HOST}${ENDPOINT_PATH}` },
+  ])
 })
 
 test("the portable manifest points at one of the registered remotes", () => {

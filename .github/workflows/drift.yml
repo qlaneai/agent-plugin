@@ -4,12 +4,24 @@ name: Drift
 # agreement with a LIVE production endpoint, so a production blip must not be
 # able to block a docs change. It is also the only check in this repo that can
 # see a change made outside it.
+#
+# ⚠️ GitHub DISABLES scheduled workflows in a public repository after 60 days
+# with no repository activity, and emails the last committer. A plugin repo sits
+# idle between releases, so that will happen here. A disabled drift check is
+# indistinguishable from a passing one — it just goes quiet — which is the exact
+# silent-failure shape this repo keeps guarding against. Two mitigations:
+#   1. If the repo has been quiet, re-enable the schedule in the Actions tab (or
+#      push any commit) — and run this workflow once via `workflow_dispatch` to
+#      confirm it is alive.
+#   2. A failing run files an issue (below), so a red result leaves a durable
+#      artifact instead of an email to whoever last touched this file.
 on:
   schedule: [{ cron: "17 6 * * *" }]
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: write # only for the failure step below
 
 jobs:
   live-card:
@@ -22,3 +34,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:live
+
+      - name: File an issue when the live card has drifted
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TITLE: "Drift: server.json disagrees with the live Server Card"
+        run: |
+          set -euo pipefail
+          # Comment on the existing issue rather than opening a new one each day:
+          # a drift that takes a week to fix must not produce seven issues.
+          # Matched on exact title via jq rather than `--search` (search indexing
+          # is eventually consistent) or `--label` (which must exist first).
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | .[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still drifting as of $RUN_URL"
+          else
+            gh issue create --title "$TITLE" --body "$(printf '%s\n' \
+              "\`npm run test:live\` failed: \`server.json\` in this repo no longer agrees with" \
+              "<https://qlane.ai/.well-known/mcp/server-card.json>." \
+              "" \
+              "This check is the only one that can see a change made outside this repo, so the" \
+              "likeliest cause is a change to the card in the main repo that has not been" \
+              "mirrored here — or a regional endpoint that moved." \
+              "" \
+              "Run: $RUN_URL")"
+          fi

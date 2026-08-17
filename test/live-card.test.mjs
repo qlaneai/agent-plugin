@@ -21,8 +21,15 @@ test("server.json agrees with the live Server Card", async () => {
 
   assert.equal(ours.name, card.name, "card name must match ai.qlane/qlane")
 
-  const urls = (o) => o.remotes.map((r) => r.url).sort()
-  assert.deepEqual(urls(ours), urls(card), "regional endpoint set must match production")
+  // {type, url} pairs, not urls alone: a remote switched from streamable-http to
+  // sse keeps its url, so a url-only comparison passes that against production.
+  const endpoints = (o) =>
+    o.remotes.map(({ type, url }) => ({ type, url })).sort((a, b) => (a.url < b.url ? -1 : 1))
+  assert.deepEqual(
+    endpoints(ours),
+    endpoints(card),
+    "regional endpoint set — type and url — must match production"
+  )
 
   // NOT asserted: version. server.json tracks the server identity, plugin.json
   // tracks the package, and coupling them forces false bumps.

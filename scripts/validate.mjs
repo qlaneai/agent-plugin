@@ -51,6 +51,15 @@ const CHECKS = [
 
 let failed = false
 for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHECKS) {
+  // `strict` itself is NOT overridable per check: an entry may relax a NAMED
+  // sub-option, never the mode that gives the others their meaning. Enforced
+  // rather than merely documented — an ordering convention permits the override
+  // it means to forbid, and reads as a guarantee to whoever comes next.
+  if ("strict" in ajvOptions) {
+    console.error(`✗ ${doc} — CHECKS may not set \`strict\`; relax a named sub-option instead`)
+    failed = true
+    continue
+  }
   if (!existsSync(doc)) {
     console.error(`✗ ${doc} — missing`)
     failed = true
@@ -81,8 +90,8 @@ for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHEC
     const Ajv = draft === "2020" ? (Ajv2020.default ?? Ajv2020) : (Ajv07.default ?? Ajv07)
     // strict: true so a mistyped keyword (e.g. "additionalProperies") is a hard
     // error rather than a silently ignored no-op that weakens the schema.
-    // strict stays first so a per-check entry can only ever RELAX a named
-    // sub-option, and the relaxation is visible in CHECKS next to its reason.
+    // Every relaxation is a named sub-option, visible in CHECKS next to its
+    // reason; `strict` itself was rejected above.
     const ajv = new Ajv({ allErrors: true, strict: true, ...ajvOptions })
     addFormats.default ? addFormats.default(ajv) : addFormats(ajv)
     // Annotation-only: no `code`/`validate`, so it constrains nothing and only
