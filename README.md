@@ -23,8 +23,8 @@ editor you use.
 
 ## Install
 
-Qlane MCP requires a Qlane account. Whichever editor you use, it prompts you to sign in the
-first time the server is called.
+Qlane MCP requires a Qlane account. Your editor prompts you to sign in the first time it calls
+the server.
 
 ### Claude Code
 
@@ -50,11 +50,18 @@ Add this repo to `chat.plugins.marketplaces`:
 }
 ```
 
+If nothing appears after adding it, check that `chat.plugins.enabled` is `true`.
+
 ### Cursor
 
 Open the **Editor** page in your Qlane dashboard and use the one-click install. It builds a
 region-correct link for your organization, which is what you want here — Cursor reads the
 EU-pinned manifest otherwise.
+
+### Kiro
+
+Same route as Cursor: open the **Editor** page in your Qlane dashboard and use the install it
+shows for your organization.
 
 ### Codex
 
@@ -66,14 +73,7 @@ codex plugin marketplace add qlaneai/agent-plugin
 ```
 
 Then open the **Plugins Directory** in the ChatGPT desktop app and install `qlane` from it.
-Once it is installed, authenticate the server:
-
-```bash
-codex mcp login qlane
-```
-
-Sign-in is a separate step on purpose: installing the plugin registers the server but does not
-authenticate it.
+Codex prompts you to sign in the first time it calls the server.
 
 ## Opening this repository in Claude Code
 
@@ -83,7 +83,7 @@ it is not specific to any one editor feature — Claude Code reads a `.mcp.json`
 root as _project-scoped_ MCP configuration, so this repo's `.mcp.json` is the plugin's own
 manifest being read as if it were yours. The placeholder is only substituted when the file is
 loaded **as a plugin**, which is not what opening the directory does. Decline it, and install
-the plugin with the commands above instead.
+the plugin with the Claude Code commands above instead.
 
 ## Without the plugin
 

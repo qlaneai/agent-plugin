@@ -10,9 +10,13 @@ permissions:
 # carries `refs/heads/<branch>`, so the two would land in different groups and
 # nothing would dedupe. `head_ref` (PR: `<branch>`) and `ref_name` (push:
 # `<branch>`) are the pair that actually collide.
+#
+# Cancellation is scoped to pull_request events. With a bare `true` the push and
+# pull_request runs for the same commit cancel EACH OTHER, and a cancelled run can
+# read as non-passing if `check` ever becomes a required status.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
