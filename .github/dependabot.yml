@@ -1,0 +1,10 @@
+# Scoped to `github-actions` only, deliberately. Stale action versions are a real
+# supply-chain surface on a public repo that anyone can open a PR against. The npm
+# ecosystem is left out: the only dependencies here are exact-pinned dev tools, and
+# weekly PRs against them would be noise on a repo nobody watches day to day.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
