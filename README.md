@@ -13,8 +13,9 @@ you connect the one hosting your organization:
 | `qlane-eu` | `https://mcp-eu.qlane.ai/api/mcp` |
 | `qlane-us` | `https://mcp-us.qlane.ai/api/mcp` |
 
-Authenticate that one and leave the other alone. An unconnected server contributes no tools
-and costs nothing; it is not an error state. If you connect the wrong one, every call returns
+Authenticate that one and leave the other alone. An unconnected server contributes none of
+its own tools — your editor shows it with two sign-in helpers and nothing else — so it costs
+you nothing and is not an error state. If you connect the wrong one, every call returns
 a 403 naming the correct host — nothing is lost, and the fix is to connect the other server.
 
 Both are plain static URLs, so this works identically on every editor. Nothing is configured,

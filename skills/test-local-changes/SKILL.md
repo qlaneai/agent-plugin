@@ -24,10 +24,15 @@ The plugin registers one server per data region, `qlane-eu` and `qlane-us`, with
 tools. Only the one hosting the user's organization will authenticate — the other returns 403
 to everything, and re-authenticating cannot fix that.
 
-So use whichever server is connected. If **both** are, ask which organization they mean rather
-than picking; the two are different tenants and the answer is not inferable. If **neither** is,
-say so and point them at the region their organization is hosted in — connecting is a one-time
-step you cannot perform for them.
+So use whichever server is connected. **You can tell by its tools**: a connected server exposes
+`resolve_project`, `list_projects`, `create_test_plan` and the rest, while an unconnected one
+exposes only `authenticate` and `complete_authentication` — two sign-in helpers the client
+adds. A server offering nothing but those is not connected, whatever its name suggests.
+
+If **both** are connected, ask which organization they mean rather than picking; the two are
+different tenants and the answer is not inferable. If **neither** is, say so and point them at
+the region their organization is hosted in — connecting is a one-time step you cannot perform
+for them.
 
 Every tool named below exists on both servers. Call it on the one you settled here.
 
