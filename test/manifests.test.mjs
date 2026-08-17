@@ -66,6 +66,31 @@ test("both manifests declare the same plugin name and version", () => {
   assert.equal(read("plugin.json").version, read(".claude-plugin/plugin.json").version)
 })
 
+// The product claim a user reads at install time, carried by FOUR manifests. It
+// drifted once already: the wording changed upstream from "coverage" — Qlane
+// produces test cases, it does not measure coverage — and the correction reached the
+// live Server Card and server.json while all three plugin manifests kept the old
+// word, so every non-Claude client was still being shown the retired claim.
+//
+// Pinned to the literal for the same reason `version` is, and for one more: the
+// offline suite is the only guard a PR runs. live-card.test.mjs couples server.json
+// to production, but it is network-gated behind `npm run test:live`, so an
+// agreement-only assertion here would pass happily on four stale copies.
+const CLAIM =
+  "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases."
+
+test("every manifest makes the same product claim", () => {
+  assert.equal(read("server.json").description, CLAIM)
+  assert.equal(read(".claude-plugin/plugin.json").description, CLAIM)
+  assert.equal(read(".claude-plugin/marketplace.json").plugins[0].description, CLAIM)
+  // The portable manifest appends a region sentence — it has no userConfig to carry
+  // that information — so it extends the claim rather than equalling it.
+  assert.ok(
+    read("plugin.json").description.startsWith(CLAIM),
+    "portable plugin.json must open with the shared claim"
+  )
+})
+
 // The two below close gaps the JSON Schemas structurally cannot: the upstream
 // schemas permit ANY server key, ANY url, an EMPTY mcpServers object, and any
 // repository string. `npm run validate` passing therefore does NOT mean our
