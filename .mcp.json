@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "qlane": {
+      "type": "http",
+      "url": "https://${user_config.region_host}/api/mcp"
+    }
+  }
+}
