@@ -2,12 +2,17 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const read = (p) => JSON.parse(readFileSync(p, "utf8"))
+// Resolved against this file, not the cwd, so the suite passes when run from
+// inside test/ as well as from the repo root.
+const read = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"))
 const ENDPOINT_PATH = "/api/mcp"
 const EU_HOST = "mcp-eu.qlane.ai"
 const SERVER_NAME = "qlane"
 
 test("portable and Claude Code manifests name the same server", () => {
+  // deepEqual against the literal key list also rules out an EMPTY mcpServers object,
+  // which is schema-valid and installs nothing. A separate length check would add no
+  // coverage — any key list that fails one fails the other.
   assert.deepEqual(Object.keys(read("mcp.json").mcpServers), [SERVER_NAME])
   assert.deepEqual(Object.keys(read(".mcp.json").mcpServers), [SERVER_NAME])
 })
@@ -38,19 +43,20 @@ test("the portable manifest is pinned to EU and carries the full endpoint path",
 
 test("both manifests declare the same plugin name and version", () => {
   assert.equal(read("plugin.json").name, read(".claude-plugin/plugin.json").name)
+  // Pin ONE side to the literal. Comparing the two sides alone is vacuous on mutual
+  // absence: deleting `version` from both files compares undefined === undefined and
+  // passes, and nothing backstops it — the Agent Plugins schema requires only
+  // ["$schema", "name"], and .claude-plugin/plugin.json is validated by nothing.
+  // The name half needs no such pin: a test below anchors plugin.json's name to the
+  // literal, which transitively pins the other side through this agreement line.
+  assert.equal(read("plugin.json").version, "0.1.0")
   assert.equal(read("plugin.json").version, read(".claude-plugin/plugin.json").version)
 })
 
-// The three below close gaps the JSON Schemas structurally cannot: the upstream
+// The two below close gaps the JSON Schemas structurally cannot: the upstream
 // schemas permit ANY server key, ANY url, an EMPTY mcpServers object, and any
 // repository string. `npm run validate` passing therefore does NOT mean our
 // constraints hold — these assertions are the only thing that does.
-test("exactly one server is declared, and it is not zero", () => {
-  // An empty mcpServers object is schema-VALID and installs nothing at all.
-  assert.equal(Object.keys(read("mcp.json").mcpServers).length, 1)
-  assert.equal(Object.keys(read(".mcp.json").mcpServers).length, 1)
-})
-
 test("the plugin is named exactly `qlane`", () => {
   // Must match MCP_SERVER_NAME in the monorepo, or a dashboard install and a
   // marketplace install produce two servers instead of one.
