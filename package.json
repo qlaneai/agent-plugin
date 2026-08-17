@@ -2,14 +2,22 @@
   "name": "@qlaneai/agent-plugin",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\"",
+    "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!node_modules\"",
     "validate": "node scripts/validate.mjs",
     "test": "node --test test/manifests.test.mjs",
-    "check": "npm run validate && npm run test"
+    "check": "npm run format:check && npm run lint:md && npm run validate && npm test"
   },
   "devDependencies": {
     "ajv": "8.20.0",
-    "ajv-formats": "3.0.1"
+    "ajv-formats": "3.0.1",
+    "markdownlint-cli2": "0.23.2",
+    "prettier": "3.9.6"
   }
 }

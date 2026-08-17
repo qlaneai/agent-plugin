@@ -1,0 +1,70 @@
+// markdownlint-cli2 configuration — see https://github.com/DavidAnson/markdownlint-cli2
+//
+// The rule block below is kept identical to the qlane monorepo's
+// `.markdownlint-cli2.jsonc` on purpose: prose moves between the two repos
+// (README sections lifted from docs, and back), and a rule that fires in one
+// repo but not the other turns every such move into a lint fight.
+//
+// Prettier owns Markdown *formatting* here (`npm run format`). This config
+// therefore lints only what Prettier does NOT decide: broken link fragments,
+// malformed tables, bare URLs, and missing code-fence languages.
+//
+// Run: `npm run lint:md` (check) / `npm run lint:md:fix` (auto-fix).
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/v0.23.2/schema/markdownlint-cli2-config-schema.json",
+
+  // Linted set for a bare `npx markdownlint-cli2` with no file arguments. The
+  // npm scripts pass explicit globs, which override this — the two are kept in
+  // agreement so both invocations lint the same files.
+  "globs": ["**/*.md"],
+
+  // Honour .gitignore, so node_modules/ is skipped by the same rule that keeps
+  // it out of git rather than by a second list that can drift from it.
+  "gitignore": true,
+
+  // `.git` is here because `gitignore: true` does NOT cover it — git excludes
+  // its own directory structurally, not via a .gitignore entry, and
+  // markdownlint-cli2 globs with `dot: true`. Agent tooling writes `*.md` under
+  // `.git/` (e.g. `.git/sdd/*.md`), which would fail this gate on a clean
+  // checkout for every contributor, on files none of them wrote or could fix.
+  "ignores": ["node_modules", ".git"],
+
+  "config": {
+    // Disables the 23 rules that overlap with Prettier's formatter, including
+    // MD013/line-length — Prettier defaults to `proseWrap: "preserve"`, so it
+    // never reflows prose and MD013 would fire on lines it will not fix.
+    // Shipped by markdownlint itself; see markdownlint/doc/Prettier.md.
+    "extends": "markdownlint/style/prettier",
+
+    // ── Deliberate house style, mirroring the monorepo ────────────────────
+    // Bold lead-ins ("**Note.** …") open paragraphs in qlane docs. They are
+    // emphasis, not headings, and must not be promoted into a table of contents.
+    "no-emphasis-as-heading": false,
+
+    // Repeated headings are legitimate under *different* parents. `siblings_only`
+    // keeps the case that actually breaks something: two identical headings at
+    // the same level under one parent generate colliding anchors, so a link to
+    // either is ambiguous — the same defect MD051 catches from the link side.
+    "no-duplicate-heading": { "siblings_only": true },
+
+    // Docs embed HTML deliberately — <details>/<summary>, <img> with sizing.
+    "no-inline-html": false,
+
+    // Some docs open with a blockquote callout or a status line before the title.
+    "first-line-heading": false,
+
+    // A doc that quotes another document inside a blockquote, or carries both a
+    // front-matter `title:` and a matching H1, legitimately has a "second" H1.
+    "single-title": false,
+
+    // Literal string prefixes whose trailing space is the point are documented in
+    // code spans. CommonMark only strips a space when the span has one at BOTH
+    // ends, so those spaces render and the rule is a false positive — and its
+    // --fix rewrites meaning rather than formatting.
+    //
+    // MD040/fenced-code-language deliberately stays ON: beyond syntax
+    // highlighting, a fence with no language is often content that wanted to be a
+    // quote or a table. Use `text` for literal output no lexer should touch.
+    "no-space-in-code": false,
+  },
+}

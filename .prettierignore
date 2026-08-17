@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+
+# Vendored verbatim from upstream. Reformatting them would make a future
+# re-vendor produce a diff that is entirely whitespace, hiding the real change.
+schemas/
