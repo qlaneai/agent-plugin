@@ -2,12 +2,31 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.qlane/qlane",
   "title": "Qlane",
-  "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, coverage.",
+  "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases.",
   "version": "1.0.0",
   "websiteUrl": "https://qlane.ai",
-  "repository": { "url": "https://github.com/qlaneai/agent-plugin", "source": "github" },
+  "repository": {
+    "url": "https://github.com/qlaneai/agent-plugin",
+    "source": "github",
+    "id": "1337259710"
+  },
+  "icons": [
+    {
+      "src": "https://qlane.ai/brand/qlane-icon-square.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
   "remotes": [
     { "type": "streamable-http", "url": "https://mcp-eu.qlane.ai/api/mcp" },
     { "type": "streamable-http", "url": "https://mcp-us.qlane.ai/api/mcp" }
-  ]
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "regions": {
+        "eu": "https://mcp-eu.qlane.ai/api/mcp",
+        "us": "https://mcp-us.qlane.ai/api/mcp"
+      }
+    }
+  }
 }

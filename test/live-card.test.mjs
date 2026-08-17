@@ -21,6 +21,11 @@ test("server.json agrees with the live Server Card", async () => {
 
   assert.equal(ours.name, card.name, "card name must match ai.qlane/qlane")
 
+  // Asserted BECAUSE a published registry version is immutable: re-wording the
+  // card orphans the copy already published, and correcting that copy costs a
+  // version bump. Drift has to surface here, while it is still cheap to fix.
+  assert.equal(ours.description, card.description, "description must match the live card")
+
   // {type, url} pairs, not urls alone: a remote switched from streamable-http to
   // sse keeps its url, so a url-only comparison passes that against production.
   const endpoints = (o) =>
