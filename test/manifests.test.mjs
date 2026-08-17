@@ -9,6 +9,9 @@ const ENDPOINT_PATH = "/api/mcp"
 const EU_HOST = "mcp-eu.qlane.ai"
 const US_HOST = "mcp-us.qlane.ai"
 const SERVER_NAME = "qlane"
+// Deliberately NOT equal to SERVER_NAME — see the marketplace-name test at the
+// bottom for why, before "fixing" them into agreement.
+const MARKETPLACE_NAME = "qlane-plugin"
 // The spec transport value. Claude Code's own manifest uses "http" instead —
 // see the two transport tests below — but the Registry entry follows the spec.
 const REMOTE_TYPE = "streamable-http"
@@ -155,9 +158,28 @@ test("the portable manifest points at one of the registered remotes", () => {
   )
 })
 
-test("the marketplace is named `qlane`, so `qlane@qlane` installs", () => {
-  // The README documents `claude plugin install qlane@qlane`, where the half after
-  // the `@` is the MARKETPLACE name, not the plugin name. Renaming the marketplace
-  // silently breaks that documented command.
-  assert.equal(read(".claude-plugin/marketplace.json").name, SERVER_NAME)
+test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs", () => {
+  // The README documents `claude plugin install qlane@qlane-plugin`. The half BEFORE
+  // the `@` is the plugin, the half AFTER is the marketplace. Renaming either half
+  // silently breaks that documented command, so both are pinned to literals — the
+  // plugin name by the test above, the marketplace name here.
+  //
+  // The two are deliberately DIFFERENT, and this is the note for whoever later tries
+  // to tidy them into agreement:
+  //
+  //   - The PLUGIN must stay `qlane` because it has to match MCP_SERVER_NAME in the
+  //     main Qlane repo. If it drifts, a dashboard install and a marketplace install
+  //     register two different servers instead of one, and the user gets both.
+  //   - The MARKETPLACE is therefore the half free to move, and it is suffixed so
+  //     `qlane@qlane-plugin` reads as "the qlane plugin, from the qlane-plugin
+  //     marketplace" rather than the self-referential `qlane@qlane`.
+  //
+  // This also matches how shipped single-plugin vendor repos name the pair — Vanta's
+  // MCP plugin repo, the closest analogue to this one, installs as `vanta@vanta-plugin`.
+  assert.equal(read(".claude-plugin/marketplace.json").name, MARKETPLACE_NAME)
+  // Pinned as an inequality too: the failure this guards against is someone collapsing
+  // the two back to one name, which an equality against a constant would still catch
+  // only if they also edited the constant. Stating the invariant makes the intent
+  // survive a careless find-and-replace across both files.
+  assert.notEqual(MARKETPLACE_NAME, SERVER_NAME)
 })

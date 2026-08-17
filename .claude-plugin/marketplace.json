@@ -1,5 +1,5 @@
 {
-  "name": "qlane",
+  "name": "qlane-plugin",
   "owner": { "name": "Qlane", "email": "support@qlane.ai", "url": "https://qlane.ai" },
   "description": "The Qlane agent plugin — AI QA that runs your app in a browser on every pull request.",
   "plugins": [

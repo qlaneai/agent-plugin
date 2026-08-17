@@ -30,14 +30,14 @@ the server.
 
 ```bash
 claude plugin marketplace add qlaneai/agent-plugin
-claude plugin install qlane@qlane
+claude plugin install qlane@qlane-plugin
 ```
 
 You are prompted for your region host. To skip the prompt — useful in a dotfiles script or a
 devcontainer — pass it directly:
 
 ```bash
-claude plugin install qlane@qlane --config region_host=mcp-eu.qlane.ai
+claude plugin install qlane@qlane-plugin --config region_host=mcp-eu.qlane.ai
 ```
 
 ### VS Code and GitHub Copilot
