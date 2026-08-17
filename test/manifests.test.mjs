@@ -69,3 +69,44 @@ test("the repository points at the org that exists", () => {
     assert.equal(read(f).repository, "https://github.com/qlaneai/agent-plugin")
   }
 })
+
+test("the marketplace entry declares no version, deferring to plugin.json", () => {
+  const entry = read(".claude-plugin/marketplace.json").plugins.find((p) => p.name === SERVER_NAME)
+  assert.ok(entry, `marketplace must list a plugin named ${SERVER_NAME}`)
+  // No `version` here on purpose. At install time plugin.json WINS and the entry's
+  // value is silently ignored (Claude Code's `calculatePluginVersion` precedence),
+  // so a version here can only ever be right or silently wrong — it can never be
+  // load-bearing. Omitting it deletes that drift class instead of policing it, and
+  // removes a fourth copy of the version literal from the repo. 95% of the 286
+  // entries in Anthropic's own marketplace omit it, as does Vanta's plugin.
+  //
+  // `claude plugin validate --strict .` is what enforces this from the tool side —
+  // it is NOT wired into `npm run check`, because the claude CLI is not installed on
+  // the CI runner and `check` must stay runnable offline. This assertion is the part
+  // that runs everywhere.
+  assert.ok(!("version" in entry), "marketplace entry must not declare a version")
+})
+
+test("the marketplace ships the plugin from this repo, not a second fetch", () => {
+  const entry = read(".claude-plugin/marketplace.json").plugins.find((p) => p.name === SERVER_NAME)
+  // `"./"` means "the plugin is at the root of the repo this marketplace came from",
+  // so `claude plugin marketplace add qlaneai/agent-plugin` clones once and the
+  // installed plugin is pinned to the same commit as the marketplace entry that
+  // described it. A `{ source: "github", repo: "qlaneai/agent-plugin" }` entry also
+  // validates, but re-fetches the default branch — so a released tag could serve a
+  // plugin newer than the marketplace entry's own `version` field, which is exactly
+  // the disagreement the test above exists to prevent.
+  //
+  // NOTE the key is `source`, not `type`: `{ type: "github", owner, repo }` is
+  // rejected outright by `claude plugin validate` (verified 2026-08-17, Claude Code
+  // CLI). `claude plugin validate` checks this field's SHAPE only — it does not
+  // resolve the path — so nothing but this assertion pins the value.
+  assert.equal(entry.source, "./")
+})
+
+test("the marketplace is named `qlane`, so `qlane@qlane` installs", () => {
+  // The README documents `claude plugin install qlane@qlane`, where the half after
+  // the `@` is the MARKETPLACE name, not the plugin name. Renaming the marketplace
+  // silently breaks that documented command.
+  assert.equal(read(".claude-plugin/marketplace.json").name, SERVER_NAME)
+})
