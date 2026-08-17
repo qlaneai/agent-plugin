@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "qlane": {
+      "type": "streamable-http",
+      "url": "https://mcp-eu.qlane.ai/api/mcp"
+    }
+  }
+}

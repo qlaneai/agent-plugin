@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "qlane",
+  "version": "0.1.0",
+  "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, coverage. Connects to the EU region by default — US-hosted organizations install from the Qlane dashboard.",
+  "author": { "name": "Qlane", "url": "https://qlane.ai" },
+  "homepage": "https://qlane.ai",
+  "repository": "https://github.com/qlaneai/agent-plugin",
+  "license": "MIT",
+  "keywords": ["qa", "testing", "browser", "pull-request", "mcp"]
+}
