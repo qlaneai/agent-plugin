@@ -70,9 +70,16 @@ test("the repository points at the org that exists", () => {
   }
 })
 
-test("the marketplace entry declares no version, deferring to plugin.json", () => {
+// Shared so a missing entry fails by name in EVERY test that needs one, rather
+// than throwing a TypeError on property access in whichever test forgot the guard.
+const marketplaceEntry = () => {
   const entry = read(".claude-plugin/marketplace.json").plugins.find((p) => p.name === SERVER_NAME)
   assert.ok(entry, `marketplace must list a plugin named ${SERVER_NAME}`)
+  return entry
+}
+
+test("the marketplace entry declares no version, deferring to plugin.json", () => {
+  const entry = marketplaceEntry()
   // No `version` here on purpose. At install time plugin.json WINS and the entry's
   // value is silently ignored (Claude Code's `calculatePluginVersion` precedence),
   // so a version here can only ever be right or silently wrong — it can never be
@@ -88,7 +95,7 @@ test("the marketplace entry declares no version, deferring to plugin.json", () =
 })
 
 test("the marketplace ships the plugin from this repo, not a second fetch", () => {
-  const entry = read(".claude-plugin/marketplace.json").plugins.find((p) => p.name === SERVER_NAME)
+  const entry = marketplaceEntry()
   // `"./"` means "the plugin is at the root of the repo this marketplace came from",
   // so `claude plugin marketplace add qlaneai/agent-plugin` clones once and the
   // installed plugin is pinned to the same commit as the marketplace entry that
@@ -102,6 +109,16 @@ test("the marketplace ships the plugin from this repo, not a second fetch", () =
   // CLI). `claude plugin validate` checks this field's SHAPE only — it does not
   // resolve the path — so nothing but this assertion pins the value.
   assert.equal(entry.source, "./")
+})
+
+test("README.md exists and is not empty", () => {
+  // `lint:md` exits 0 when its glob matches ZERO files (measured), so deleting or
+  // renaming the README would leave the markdown gate green while the repo's public
+  // face — and this task's main deliverable — is gone. Same vacuity class as a bare
+  // `node --test` discovering no test files. This assertion is what makes the lint
+  // gate non-vacuous, so it belongs in the suite rather than in the linter's config.
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8")
+  assert.ok(readme.trim().length > 0, "README.md must exist and be non-empty")
 })
 
 test("the marketplace is named `qlane`, so `qlane@qlane` installs", () => {

@@ -1,7 +1,7 @@
 # Qlane agent plugin
 
 Installs [Qlane MCP](https://qlane.ai) into your AI coding editor, so your agent can reach
-your Qlane projects, test targets and coverage without leaving the editor.
+your Qlane projects, test targets and test-case counts without leaving the editor.
 
 ## Which region?
 
@@ -19,10 +19,12 @@ this plugin's portable manifest, which is pinned to the EU host:
 
 **US-hosted organizations on any editor except Claude Code**: open the **Editor** page in your
 Qlane dashboard. It always renders a region-correct install for your organization, whichever
-editor you use. VS Code and GitHub Copilot can alternatively install either region from the
-MCP Registry.
+editor you use.
 
 ## Install
+
+Qlane MCP requires a Qlane account. Whichever editor you use, it prompts you to sign in the
+first time the server is called.
 
 ### Claude Code
 
@@ -40,36 +42,40 @@ claude plugin install qlane@qlane --config region_host=mcp-eu.qlane.ai
 
 ### VS Code and GitHub Copilot
 
-Agent plugins are a preview feature. Set `chat.plugins.enabled` to `true`, then add this repo
-to `chat.plugins.marketplaces`:
+Add this repo to `chat.plugins.marketplaces`:
 
 ```json
 {
-  "chat.plugins.enabled": true,
   "chat.plugins.marketplaces": ["qlaneai/agent-plugin"]
 }
 ```
 
+### Cursor
+
+Open the **Editor** page in your Qlane dashboard and use the one-click install. It builds a
+region-correct link for your organization, which is what you want here — Cursor reads the
+EU-pinned manifest otherwise.
+
 ### Codex
 
 ```bash
-codex marketplace add github:qlaneai/agent-plugin
-```
-
-Then run `/plugins` in Codex to install `qlane` from the browser, and sign in separately —
-installing the plugin registers the server but does not authenticate it:
-
-```bash
+codex plugin marketplace add qlaneai/agent-plugin
+codex plugin install qlane
 codex mcp login qlane
 ```
 
-> **Opening this repository in Claude Code?** You will see a `qlane` server listed as
-> **Pending approval**, with `${user_config.region_host}` sitting unresolved in its URL. That
-> is expected and harmless. Claude Code reads a `.mcp.json` at a repository root as
-> _project-scoped_ MCP configuration, and this repo's `.mcp.json` is the plugin's own manifest
-> being read as if it were yours. The placeholder is only substituted when the file is loaded
-> **as a plugin**, which is not what opening the directory does. Decline it, and install the
-> plugin with the commands above instead.
+Installed plugins are also browsable with `/plugins`. The sign-in step is separate on purpose:
+installing the plugin registers the server but does not authenticate it.
+
+## Opening this repository in Claude Code
+
+You will see a `qlane` server listed as **Pending approval**, with
+`${user_config.region_host}` sitting unresolved in its URL. That is expected and harmless, and
+it is not specific to any one editor feature — Claude Code reads a `.mcp.json` at a repository
+root as _project-scoped_ MCP configuration, so this repo's `.mcp.json` is the plugin's own
+manifest being read as if it were yours. The placeholder is only substituted when the file is
+loaded **as a plugin**, which is not what opening the directory does. Decline it, and install
+the plugin with the commands above instead.
 
 ## Without the plugin
 
@@ -83,8 +89,8 @@ Swap the host for `mcp-us.qlane.ai` if your organization is US-hosted.
 
 ## What it can do
 
-Read your projects, test targets and coverage, and plan tests for a local diff before a pull
-request exists. Planning a test consumes Qlane credits.
+Read your projects, test targets and test-case counts, and plan tests for a local diff before
+a pull request exists. Planning a test consumes Qlane credits.
 
 ## Development
 
@@ -93,8 +99,8 @@ npm ci
 npm run check
 ```
 
-`check` runs Prettier, markdownlint, JSON Schema validation of the manifests, and the unit
-tests. It makes no network calls, so it works offline and in a sandboxed CI runner.
+`check` runs Prettier, markdownlint, JSON Schema validation of the portable manifests, and the
+unit tests. It makes no network calls, so it works offline and in a sandboxed CI runner.
 
 ```bash
 npm run format      # apply Prettier
