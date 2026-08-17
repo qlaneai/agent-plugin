@@ -33,10 +33,17 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
-      - run: npm run test:live
+      - id: live
+        run: npm run test:live
 
+      # Gated on THIS step's own conclusion, never a bare `failure()`: a checkout
+      # hiccup or an `npm ci` registry blip would otherwise file an issue whose
+      # title asserts the card has drifted. A durable false claim is worse than
+      # no artifact at all, because someone will act on it. `!cancelled()` is
+      # load-bearing — an `if:` containing no status function has `success()`
+      # ANDed in by default, which can never be true once a step has failed.
       - name: File an issue when the live card has drifted
-        if: failure()
+        if: ${{ !cancelled() && steps.live.conclusion == 'failure' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

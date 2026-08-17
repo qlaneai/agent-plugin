@@ -8,14 +8,43 @@ import { fileURLToPath } from "node:url"
 const ROOT = new URL("../", import.meta.url)
 const readJson = (p) => JSON.parse(readFileSync(new URL(p, ROOT), "utf8"))
 
-// WHAT THIS GUARDS: not "which files contain a version string". That predicate
-// both MISSES an unregistered manifest whose version is already wrong (a new
-// vscode-manifest.json pinned to 0.0.9 contains no copy of the current version,
-// so it looks clean) and turns unfixably red the day the plugin version
-// collides with a dependency version, a vendored schema's $id, or the server's
-// own identity — with no legal way to silence it. The predicate is instead
-// "which tracked JSON files DECLARE a top-level `version`", which is the
-// property actually being kept in sync.
+// WHAT THIS GUARDS, in two halves that partition the tracked files between them.
+//
+//   *.json         — STRUCTURAL. Which files declare a top-level `version` key,
+//                    and does its value match the plugin's.
+//   everything else — TEXTUAL. Which files contain the plugin version literal.
+//
+// NOTE: this file spells out no version literal of its own, in prose or in a
+// reason string — one here would trip the textual half on whatever release it
+// collided with, and the fix is always to reword rather than to exempt. That is
+// not hypothetical: an earlier revision named a version in a comment and the
+// audit reported itself.
+//
+// Neither half alone is the guard. The structural half exists because "contains
+// the version string" misses an unregistered manifest whose version is already
+// WRONG (a new vscode-manifest.json pinned to an older release contains no copy
+// of the current version, so it reads clean) and because it turns unfixably red
+// the plugin version collides with a dependency version, a vendored schema's
+// $id, or the server's own identity. The textual half exists because the
+// structural one only understands JSON, and the headline case this script is
+// FOR — "you added a manifest and forgot to register it" — arrives just as
+// easily as manifest.yaml or plugin.jsonc. Restricting the text scan to
+// non-JSON files is what keeps it from re-introducing the collision problem:
+// every known colliding file is a .json, so the text half never sees them.
+//
+// WHAT NEITHER HALF COVERS — real gaps, not oversights:
+//   • A version NESTED inside a JSON document ({"plugin":{"version":"…"}}).
+//     The structural half reads the top level only and the text half skips
+//     *.json entirely. Deliberate: recursing would fire on package-lock.json,
+//     which carries a `version` under every entry in `packages`.
+//   • A non-JSON manifest carrying a WRONG version (a manifest.yaml pinned to
+//     some other release).
+//     The text half matches the current literal, so it sees presence, never
+//     correctness. A non-JSON manifest that must track the plugin version needs
+//     a real check of its own — TEXT_CARRIERS below is not that.
+//   • Untracked files (`git ls-files` lists the index, so a new file is seen
+//     once staged — which is a precondition of committing it) and binary or
+//     unreadable files, which are skipped.
 //
 // Files that MUST declare the plugin version at their JSON top level. Adding a
 // manifest means adding it here — and if you forget, this script is what tells
@@ -25,6 +54,13 @@ const DECLARED = ["plugin.json", ".claude-plugin/plugin.json"]
 
 // Tracked JSON that legitimately declares a version that is NOT the plugin's.
 // Per-file and explicit, so adding one is a decision rather than a default.
+//
+// ⚠️ NEVER add a plugin manifest here to quiet a failure. Unlike DECLARED, which
+// forces `declared === version` and so cannot hide a wrong value, an entry here
+// asserts NOTHING about the value — it exempts the file permanently and for
+// every future version. This list is only for a file whose version legitimately
+// belongs to something else. If the file should track the plugin version, it
+// goes in DECLARED; if it disagrees, fix the file.
 const FOREIGN_VERSIONS = {
   "server.json":
     "the MCP server's own identity — the Registry schema calls it 'equivalent of Implementation.version'. It tracks the deployed server, not this package, so the two are meant to differ and coupling them would force false bumps.",
@@ -36,10 +72,43 @@ const FOREIGN_VERSIONS = {
 // and this is where that exemption goes. The three vendored schemas are absent
 // for the same reason: they carry versions in their $id and filenames, never in
 // a top-level `version` key, so this audit never looks at them.
+
+// Non-JSON tracked files PERMITTED to contain the version literal, with why.
+// Same prohibition as above: this is not where a forgotten manifest goes.
 //
-// test/manifests.test.mjs pins the version literal too, but it is not JSON and
-// so is out of scope here by construction. Nothing is lost: that literal sits
-// in an assertion about plugin.json, so a bump that skips it fails `npm test`.
+// Unlike the two lists above, entries here are permissions rather than
+// assertions, and are NOT staleness-checked — whether a file collides depends on
+// the current version's value, so an entry matching nothing today is expected,
+// not stale. scripts/validate.mjs is the case in point: it collides only while
+// the plugin version happens to equal the vendored schemas' line.
+const TEXT_CARRIERS = {
+  "test/manifests.test.mjs":
+    "pins the version literal in an assertion about plugin.json on purpose — that pin is what makes the two-manifest agreement test non-vacuous, and a bump that skips it fails `npm test` rather than passing quietly.",
+  "scripts/validate.mjs":
+    "names the vendored agent-plugins schemas, whose filenames and $id both carry the SCHEMA's own version line — unrelated to the plugin's, but a textual match on any release where the two happen to coincide.",
+}
+// A prose mention in a tracked non-JSON file (a README, a changelog) trips this
+// too. That is the intended over-approximation: a manifest is far likelier than
+// a comment, and the fix for a comment is to REWORD it — never to declare it.
+
+// An exemption is only reviewable if it says why. Enforced rather than left to
+// convention, because the two lists above are the only way to silence a finding
+// and a blank string would silence one while looking deliberate.
+const configErrors = []
+for (const [name, list] of [
+  ["FOREIGN_VERSIONS", FOREIGN_VERSIONS],
+  ["TEXT_CARRIERS", TEXT_CARRIERS],
+]) {
+  for (const [file, reason] of Object.entries(list)) {
+    if (typeof reason !== "string" || reason.trim() === "") {
+      configErrors.push(`${name}["${file}"] has no reason — an exemption must say why it is exempt`)
+    }
+  }
+}
+if (configErrors.length) {
+  for (const e of configErrors) console.error(`✗ ${e}`)
+  process.exit(1)
+}
 
 const source = "plugin.json"
 const version = readJson(source).version
@@ -55,14 +124,24 @@ try {
   tracked = execFileSync("git", ["ls-files"], {
     cwd: fileURLToPath(ROOT),
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
+    stdio: ["ignore", "pipe", "pipe"],
   })
     .split("\n")
     .filter(Boolean)
-} catch {
+} catch (err) {
   // Reached in a `git archive` extraction or a source tarball, where the audit
-  // cannot know what is tracked and so must refuse rather than pass vacuously.
-  console.error("✗ not a git work tree — the audit needs `git ls-files`")
+  // cannot know what is tracked and so must refuse rather than pass vacuously —
+  // but "not a work tree" is only one of the ways this fails, so report the one
+  // that actually happened instead of asserting a cause we have not established.
+  if (err.code === "ENOENT") {
+    console.error("✗ `git` is not on PATH — the audit needs `git ls-files`")
+  } else {
+    const detail =
+      String(err.stderr ?? "")
+        .trim()
+        .split("\n")[0] || `exit ${err.status}`
+    console.error(`✗ \`git ls-files\` failed — the audit cannot tell what is tracked (${detail})`)
+  }
   process.exit(1)
 }
 
@@ -111,11 +190,37 @@ for (const file of Object.keys(FOREIGN_VERSIONS)) {
   }
 }
 
+// ── Textual half: every tracked file that is NOT JSON ────────────────────────
+// Presence of the literal only. This is what catches manifest.yaml and
+// plugin.jsonc, which the structural half cannot parse and would otherwise wave
+// through — the exact "you added a manifest and forgot to register it" case.
+let textCarriers = 0
+for (const file of tracked.filter((f) => !f.endsWith(".json"))) {
+  let text
+  try {
+    text = readFileSync(new URL(file, ROOT), "utf8")
+  } catch {
+    continue // binary or unreadable — cannot carry a version string we care about
+  }
+  if (!text.includes(version)) continue
+  if (file in TEXT_CARRIERS) {
+    textCarriers++
+    continue
+  }
+  failures.push(
+    `${file} contains the version literal ${version} but is not in TEXT_CARRIERS — ` +
+      `a manifest needs a real check of its own; a file that legitimately names releases ` +
+      `(a changelog) goes in TEXT_CARRIERS with a reason; prose that merely happens to ` +
+      `mention the current version should be reworded`
+  )
+}
+
 for (const f of failures) console.error(`✗ ${f}`)
 if (!failures.length) {
   console.log(
-    `✓ version ${version} is declared by exactly the ${DECLARED.length} declared files, ` +
-      `plus ${Object.keys(FOREIGN_VERSIONS).length} documented foreign version(s)`
+    `✓ version ${version}: declared by exactly the ${DECLARED.length} declared JSON files, ` +
+      `${Object.keys(FOREIGN_VERSIONS).length} foreign version(s) exempt, ` +
+      `${textCarriers} non-JSON carrier(s) permitted`
   )
 }
 process.exit(failures.length ? 1 : 0)
