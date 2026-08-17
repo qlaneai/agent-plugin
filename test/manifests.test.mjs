@@ -35,19 +35,41 @@ test("portable mcp.json uses the SPEC transport value, not Claude Code's", () =>
   assert.equal(read("mcp.json").mcpServers[SERVER_NAME].type, "streamable-http")
 })
 
-test("Claude Code .mcp.json uses http and substitutes the region host", () => {
+// Claude Code substitutes `${user_config.<key>}` with a GLOBAL, UNANCHORED regex
+// and a plain String.replace, so the placeholder may sit inside a larger string
+// rather than being the whole value (verified by reading `replaceVariables` in
+// the 2.1.233 bundle). That is what lets the user supply `eu` instead of the
+// whole hostname — two characters instead of sixteen, and no dots to mistype.
+const resolve = (template, region) => template.replaceAll("${user_config.region}", region)
+
+test("Claude Code .mcp.json uses http and resolves to the real regional hosts", () => {
   const entry = read(".mcp.json").mcpServers[SERVER_NAME]
   // An entry with `url` and no `type` is read as a stdio server and skipped.
   assert.equal(entry.type, "http")
-  assert.equal(entry.url, `https://\${user_config.region_host}${ENDPOINT_PATH}`)
+  // Asserted by RESOLVING rather than by comparing the template to a literal:
+  // this pins what the user actually connects to, so a template that is
+  // well-formed but wrong (`mcp${…}`, a missing dot, the wrong apex) fails here
+  // instead of passing a string-equality check against itself.
+  assert.equal(resolve(entry.url, "eu"), `https://${EU_HOST}${ENDPOINT_PATH}`)
+  assert.equal(resolve(entry.url, "us"), `https://${US_HOST}${ENDPOINT_PATH}`)
+  // And nothing is left unsubstituted — a second placeholder would silently
+  // survive into the URL, which Claude Code does not treat as an error.
+  assert.ok(!resolve(entry.url, "eu").includes("${"), "no placeholder may survive")
 })
 
-test("region_host is required and has NO default", () => {
-  const opt = read(".claude-plugin/plugin.json").userConfig.region_host
+test("region is required and has NO default", () => {
+  const opt = read(".claude-plugin/plugin.json").userConfig.region
   assert.equal(opt.required, true)
-  // A default is silently used at connect time; `required` does not gate it,
-  // so a default would give every US customer an EU URL and a 403.
-  assert.ok(!("default" in opt), "region_host must not declare a default")
+  // A default is silently used at connect time; `required` does not gate it.
+  // `hasRequiredConfigMissing` counts only undefined/null/"" as missing, so a
+  // default makes the field present and every US customer silently gets EU.
+  assert.ok(!("default" in opt), "region must not declare a default")
+  // The key is load-bearing: it must match the placeholder in .mcp.json, and
+  // nothing else checks that the two agree.
+  assert.ok(
+    read(".mcp.json").mcpServers[SERVER_NAME].url.includes("${user_config.region}"),
+    ".mcp.json must reference the userConfig key by its exact name"
+  )
 })
 
 test("the portable manifest is pinned to EU and carries the full endpoint path", () => {
@@ -62,7 +84,7 @@ test("both manifests declare the same plugin name and version", () => {
   // ["$schema", "name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other side through this agreement line.
-  assert.equal(read("plugin.json").version, "0.1.0")
+  assert.equal(read("plugin.json").version, "0.2.0")
   assert.equal(read("plugin.json").version, read(".claude-plugin/plugin.json").version)
 })
 

@@ -1,6 +1,6 @@
 {
   "name": "qlane",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases.",
   "author": { "name": "Qlane", "url": "https://qlane.ai" },
   "homepage": "https://qlane.ai",
@@ -8,10 +8,10 @@
   "license": "MIT",
   "keywords": ["qa", "testing", "browser", "pull-request", "mcp"],
   "userConfig": {
-    "region_host": {
+    "region": {
       "type": "string",
       "title": "Data region",
-      "description": "Your Qlane organization's region host — mcp-eu.qlane.ai or mcp-us.qlane.ai. Both are shown on the Editor page of your Qlane dashboard.",
+      "description": "Type eu or us — whichever your Qlane organization is hosted in. It is shown on the Editor page of your Qlane dashboard.",
       "required": true
     }
   }

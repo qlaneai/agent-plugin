@@ -33,11 +33,11 @@ claude plugin marketplace add qlaneai/agent-plugin
 claude plugin install qlane@qlane-plugin
 ```
 
-You are prompted for your region host. To skip the prompt — useful in a dotfiles script or a
+You are prompted for your region — type `eu` or `us`. To skip the prompt — useful in a dotfiles script or a
 devcontainer — pass it directly:
 
 ```bash
-claude plugin install qlane@qlane-plugin --config region_host=mcp-eu.qlane.ai
+claude plugin install qlane@qlane-plugin --config region=eu
 ```
 
 ### VS Code and GitHub Copilot
@@ -78,7 +78,7 @@ Codex prompts you to sign in the first time it calls the server.
 ## Opening this repository in Claude Code
 
 You will see a `qlane` server listed as **Pending approval**, with
-`${user_config.region_host}` sitting unresolved in its URL. That is expected and harmless, and
+`${user_config.region}` sitting unresolved in its URL. That is expected and harmless, and
 it is not specific to any one editor feature — Claude Code reads a `.mcp.json` at a repository
 root as _project-scoped_ MCP configuration, so this repo's `.mcp.json` is the plugin's own
 manifest being read as if it were yours. The placeholder is only substituted when the file is
