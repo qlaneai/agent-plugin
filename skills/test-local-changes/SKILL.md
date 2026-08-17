@@ -3,7 +3,7 @@ name: test-local-changes
 description: Test uncommitted local changes before opening a pull request. Asks Qlane to plan what should be tested for the current diff, then exercises those cases against the running app — driving the browser, reading logs and checking data where available — and reports suspected bugs for the developer to triage. Use when the user has local edits and asks to test them, check for regressions, verify a change before pushing, or find what their change might have broken.
 license: MIT
 compatibility: Requires git and a Qlane account. Browser cases need browser-automation tooling in the session; without it those cases are reported as not checked rather than skipped silently.
-allowed-tools: mcp__plugin_qlane_qlane__resolve_project mcp__plugin_qlane_qlane__list_projects mcp__plugin_qlane_qlane__create_test_plan mcp__plugin_qlane_qlane__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
+allowed-tools: mcp__plugin_qlane_qlane-eu__resolve_project mcp__plugin_qlane_qlane-eu__list_projects mcp__plugin_qlane_qlane-eu__create_test_plan mcp__plugin_qlane_qlane-eu__get_test_plan mcp__plugin_qlane_qlane-us__resolve_project mcp__plugin_qlane_qlane-us__list_projects mcp__plugin_qlane_qlane-us__create_test_plan mcp__plugin_qlane_qlane-us__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
 ---
 
 # Test local changes
@@ -17,6 +17,19 @@ Qlane decides **what** to test for the diff in front of you. You decide **how** 
 This matters because you are judging your own work. You performed the actions, then assess whether they succeeded — and your own account of what you did is exactly what makes that assessment unreliable. A list of concrete observations a human can dismiss in one read is worth more than a confident summary they have to trust.
 
 ---
+
+## Step 0 — There are two servers; use the connected one
+
+The plugin registers one server per data region, `qlane-eu` and `qlane-us`, with identical
+tools. Only the one hosting the user's organization will authenticate — the other returns 403
+to everything, and re-authenticating cannot fix that.
+
+So use whichever server is connected. If **both** are, ask which organization they mean rather
+than picking; the two are different tenants and the answer is not inferable. If **neither** is,
+say so and point them at the region their organization is hosted in — connecting is a one-time
+step you cannot perform for them.
+
+Every tool named below exists on both servers. Call it on the one you settled here.
 
 ## Step 1 — Find the project
 
@@ -105,6 +118,6 @@ End there. Do not summarise into a judgement.
 ## When something goes wrong
 
 - **A payment or subscription error** — read the message. Most say retrying will not help; when they do, relay the message and stop rather than calling again. One or two are genuinely transient and say so.
-- **"This organization is hosted in a different region"** — the message names the host to reconnect at. Re-authenticating will not fix it; the connection has to point at that host. Tell the user which one.
+- **"This organization is hosted in a different region"** — you are calling the wrong one of the two servers. Re-authenticating will not fix it. Switch to the other server (`qlane-eu` ↔ `qlane-us`) and retry; if it is not connected, the user has to connect it once.
 - **A not-found error** — this can mean the thing does not exist, or belongs to another organization, or that you lack access to it. The responses are deliberately identical, so do not tell the user which; suggest they check the project in Qlane.
 - **A plan you cannot read back** — the handle is the only way to reach a plan. There is no way to list previous plans.

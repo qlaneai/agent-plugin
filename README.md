@@ -5,21 +5,20 @@ your Qlane projects, test targets and test-case counts without leaving the edito
 
 ## Which region?
 
-Qlane runs two independent regional stacks, `mcp-eu.qlane.ai` and `mcp-us.qlane.ai`. Your
-editor must connect to the one hosting your organization. Connect to the wrong one and every
-call returns a 403 naming the correct host — nothing is lost, but nothing works either.
+Qlane runs two independent regional stacks. The plugin registers **one server for each**, and
+you connect the one hosting your organization:
 
-Only Claude Code's plugin format can ask you which region you want. Every other editor reads
-this plugin's portable manifest, which is pinned to the EU host:
+| Server     | Endpoint                          |
+| ---------- | --------------------------------- |
+| `qlane-eu` | `https://mcp-eu.qlane.ai/api/mcp` |
+| `qlane-us` | `https://mcp-us.qlane.ai/api/mcp` |
 
-| Editor                                       | Region this plugin connects to                        |
-| -------------------------------------------- | ----------------------------------------------------- |
-| Claude Code                                  | **Either** — you are prompted for the host at install |
-| VS Code, GitHub Copilot, Cursor, Codex, Kiro | **EU only** (`mcp-eu.qlane.ai`)                       |
+Authenticate that one and leave the other alone. An unconnected server contributes no tools
+and costs nothing; it is not an error state. If you connect the wrong one, every call returns
+a 403 naming the correct host — nothing is lost, and the fix is to connect the other server.
 
-**US-hosted organizations on any editor except Claude Code**: open the **Editor** page in your
-Qlane dashboard. It always renders a region-correct install for your organization, whichever
-editor you use.
+Both are plain static URLs, so this works identically on every editor. Nothing is configured,
+substituted, or typed.
 
 ## Install
 
@@ -33,12 +32,8 @@ claude plugin marketplace add qlaneai/agent-plugin
 claude plugin install qlane@qlane-plugin
 ```
 
-You are prompted for your region — type `eu` or `us`. To skip the prompt — useful in a dotfiles script or a
-devcontainer — pass it directly:
-
-```bash
-claude plugin install qlane@qlane-plugin --config region=eu
-```
+Then run `/mcp` and authenticate `qlane-eu` **or** `qlane-us` — whichever hosts your
+organization. There is no configuration step and nothing to type.
 
 ### VS Code and GitHub Copilot
 
@@ -54,14 +49,12 @@ If nothing appears after adding it, check that `chat.plugins.enabled` is `true`.
 
 ### Cursor
 
-Open the **Editor** page in your Qlane dashboard and use the one-click install. It builds a
-region-correct link for your organization, which is what you want here — Cursor reads the
-EU-pinned manifest otherwise.
+Cursor reads the root `plugin.json` and loads this plugin without changes. Add the repository
+as a marketplace, install `qlane`, then authenticate the server for your region.
 
 ### Kiro
 
-Same route as Cursor: open the **Editor** page in your Qlane dashboard and use the install it
-shows for your organization.
+Same as Cursor — add the repository, install, authenticate your region's server.
 
 ### Codex
 
@@ -77,13 +70,10 @@ Codex prompts you to sign in the first time it calls the server.
 
 ## Opening this repository in Claude Code
 
-You will see a `qlane` server listed as **Pending approval**, with
-`${user_config.region}` sitting unresolved in its URL. That is expected and harmless, and
-it is not specific to any one editor feature — Claude Code reads a `.mcp.json` at a repository
-root as _project-scoped_ MCP configuration, so this repo's `.mcp.json` is the plugin's own
-manifest being read as if it were yours. The placeholder is only substituted when the file is
-loaded **as a plugin**, which is not what opening the directory does. Decline it, and install
-the plugin with the Claude Code commands above instead.
+You will see `qlane-eu` and `qlane-us` listed as **Pending approval**. That is expected and
+harmless: Claude Code reads a `.mcp.json` at a repository root as _project-scoped_ MCP
+configuration, so this repo's `.mcp.json` — the plugin's own manifest — is being read as if it
+were yours. Decline it, and install the plugin with the commands above instead.
 
 ## Without the plugin
 
@@ -126,6 +116,12 @@ claude plugin tag --dry-run         # what the next release tag would be
 The version lives in `plugin.json` only. The marketplace entry deliberately declares no
 `version` of its own: `plugin.json` wins at install time, so a second copy could only ever
 agree or be silently ignored.
+
+**No manifest may contain a placeholder.** Both regional URLs are literal strings in every
+manifest. `${user_config.*}` resolves only in the Claude Code CLI — the portable Agent Plugins
+schema cannot even express `userConfig` (`additionalProperties: false`), and claude.ai treats
+an MCP `url` as an opaque connector identity, so a templated host reaches registration verbatim
+and fails to resolve. A test enforces this.
 
 ## License
 
