@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 // Resolved against this file, not the cwd, so the suite passes when run from
 // inside test/ as well as from the repo root.
@@ -19,6 +19,15 @@ const MARKETPLACE_NAME = "qlane-plugin"
 // The spec transport value. Claude Code's own manifest uses "http" instead —
 // see the two transport tests below — but the Registry entry follows the spec.
 const REMOTE_TYPE = "streamable-http"
+// Cursor's own manifest, and the MCP file it points at. The Cursor tests below read
+// SIDECAR by this name; the test that resolves CURSOR_MANIFEST's `mcpServers` against it
+// is what makes them tests of the file Cursor actually loads.
+const CURSOR_MANIFEST = ".cursor-plugin/plugin.json"
+const SIDECAR = "cursor-mcp.json"
+// Qlane's pre-registered OAuth client for Cursor. One production sign-in environment
+// serves both regions, so one id serves both servers. Public by design: it identifies a
+// PKCE client with no secret, so publishing it grants nothing by itself.
+const CURSOR_CLIENT_ID = "client_01M3PNDD11GZ6DYW6MMNXDZ1S0"
 
 // Compared as {type, url} pairs, never urls alone: a remote silently switched to
 // "sse" keeps its url and would pass a url-only comparison here AND in the live
@@ -69,6 +78,86 @@ test("Claude Code .mcp.json uses http, its own transport spelling", () => {
   }
 })
 
+// ── Cursor signs in as Qlane's verified client ───────────────────────────────
+// Cursor loads BOTH the root Agent Plugins manifest and CURSOR_MANIFEST when both exist,
+// and only the second can reach an MCP file that names an OAuth client: the portable
+// mcp.json cannot carry one (Agent Plugins' streamableHttpServer is
+// `additionalProperties: false`). Without the sidecar, Cursor registers itself
+// dynamically, is not a verified client, and an organization's default client policy
+// stops it past the metadata reads.
+//
+// What Cursor does with two same-named servers is MEASURED, not documented: a live
+// Cursor install (2026-09-30), checked against which client the server recorded for
+// each sign-in. Re-measure before relaxing anything below on the strength of docs.
+
+test("the Cursor manifest's mcpServers resolves to the sidecar, which exists", () => {
+  const ref = read(CURSOR_MANIFEST).mcpServers
+  assert.equal(typeof ref, "string", `${CURSOR_MANIFEST} mcpServers must be a path`)
+  // Resolved against the plugin ROOT, not .cursor-plugin/ — Cursor's own published plugins
+  // keep the file their `mcpServers` names at the plugin root, beside .cursor-plugin/.
+  // Compared as resolved URLs, so `./cursor-mcp.json` and `cursor-mcp.json` are the same
+  // answer. Pointing it at the portable mcp.json would also name a file that exists, and
+  // would quietly undo this whole block; this is what fails it.
+  const root = new URL("../", import.meta.url)
+  const target = new URL(ref, root)
+  assert.equal(target.href, new URL(SIDECAR, root).href)
+  assert.ok(existsSync(target), `${ref} must exist`)
+})
+
+test("cursor-mcp.json registers exactly the portable manifest's server names", () => {
+  // THE load-bearing invariant. When both manifests declare a server under the same name,
+  // Cursor keeps ONE entry — the sidecar's, the only one carrying the client id — whether
+  // or not the URLs agree. Under a DIFFERENT name at the same URL it keeps the portable
+  // entry instead. So a sidecar server renamed on its own still installs and still
+  // connects; it just signs in unverified again, and nothing else here would notice.
+  //
+  // Sorted, because entry order means nothing to Cursor. The portable names themselves
+  // are pinned to the two regional literals by the first test in this file.
+  const names = (f) => Object.keys(read(f).mcpServers).sort()
+  assert.deepEqual(names(SIDECAR), names("mcp.json"))
+})
+
+test("every cursor-mcp.json server has the portable manifest's URL for that name", () => {
+  // Same name is what makes Cursor keep the sidecar entry; this is what makes the entry it
+  // keeps the right region. Cursor prefers the sidecar even when the URLs differ, so a URL
+  // drifted here would silently replace the portable manifest's correct one.
+  const portable = read("mcp.json").mcpServers
+  const sidecar = read(SIDECAR).mcpServers
+  for (const s of [EU_SERVER, US_SERVER]) {
+    assert.equal(sidecar[s]?.url, portable[s].url, s)
+  }
+})
+
+test("every cursor-mcp.json server signs in as Qlane's Cursor client, with no secret", () => {
+  for (const s of [EU_SERVER, US_SERVER]) {
+    const auth = read(SIDECAR).mcpServers[s]?.auth
+    assert.equal(auth?.CLIENT_ID, CURSOR_CLIENT_ID, `${s} auth.CLIENT_ID`)
+    // A public PKCE client has no secret to ship, and a CLIENT_SECRET key in a public
+    // repository reads as a leaked credential whatever it holds.
+    assert.ok(!("CLIENT_SECRET" in auth), `${s} must carry no CLIENT_SECRET`)
+  }
+})
+
+test("every cursor-mcp.json server keeps the shape that was measured", () => {
+  // `url` and `auth`, nothing else — in particular no `type`. That is the one shape the
+  // live install measured. Cursor's own plugins write `auth` both beside `"type": "http"`
+  // and with no `type` at all, so adding one is probably harmless — but it is unmeasured
+  // HERE, and "tidying" the sidecar into another dialect should cost a re-measure first.
+  for (const s of [EU_SERVER, US_SERVER]) {
+    assert.deepEqual(Object.keys(read(SIDECAR).mcpServers[s] ?? {}).sort(), ["auth", "url"], s)
+  }
+})
+
+test("the portable mcp.json carries no auth on any server", () => {
+  // The client id is Cursor's, so it lives in the Cursor-only sidecar. In the portable
+  // manifest, any other editor that honoured the field would sign in claiming to be
+  // Cursor. `npm run validate` rejects the key too, but a schema says only that it is
+  // invalid — not why moving the id here is wrong.
+  for (const [name, server] of Object.entries(read("mcp.json").mcpServers)) {
+    assert.ok(!("auth" in server), `mcp.json ${name} must carry no auth`)
+  }
+})
+
 // THE regression guard for the two-server design. A placeholder in a `url` resolves in
 // exactly one place — the Claude Code CLI — and silently fails everywhere else: the
 // portable Agent Plugins schema is `additionalProperties: false` and cannot even
@@ -80,7 +169,14 @@ test("Claude Code .mcp.json uses http, its own transport spelling", () => {
 // in `headers`, nested deeper, or in a server added later is the same bug, and a
 // field-scoped check would not see it.
 test("no manifest contains a placeholder of any kind", () => {
-  for (const f of ["mcp.json", ".mcp.json", "plugin.json", ".claude-plugin/plugin.json"]) {
+  for (const f of [
+    "mcp.json",
+    ".mcp.json",
+    SIDECAR,
+    "plugin.json",
+    ".claude-plugin/plugin.json",
+    CURSOR_MANIFEST,
+  ]) {
     const raw = readFileSync(new URL(`../${f}`, import.meta.url), "utf8")
     assert.ok(!raw.includes("${"), `${f} must contain no placeholder`)
   }
@@ -95,19 +191,21 @@ test("no plugin manifest declares userConfig", () => {
   }
 })
 
-test("both manifests declare the same plugin name and version", () => {
-  assert.equal(read("plugin.json").name, read(".claude-plugin/plugin.json").name)
-  // Pin ONE side to the literal. Comparing the two sides alone is vacuous on mutual
-  // absence: deleting `version` from both files compares undefined === undefined and
-  // passes, and nothing backstops it — the Agent Plugins schema requires only
-  // ["$schema", "name"], and .claude-plugin/plugin.json is validated by nothing.
+test("every plugin manifest declares the same plugin name and version", () => {
+  // Pin ONE side to the literal. Comparing the sides alone is vacuous on mutual absence:
+  // deleting `version` from every file compares undefined === undefined and passes, and
+  // no schema catches it — Agent Plugins requires only ["$schema", "name"], Cursor's
+  // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
-  // literal, which transitively pins the other side through this agreement line.
-  assert.equal(read("plugin.json").version, "0.3.0")
-  assert.equal(read("plugin.json").version, read(".claude-plugin/plugin.json").version)
+  // literal, which transitively pins the other sides through these agreement lines.
+  assert.equal(read("plugin.json").version, "0.4.0")
+  for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
+    assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
+    assert.equal(read(f).version, read("plugin.json").version, `${f} version`)
+  }
 })
 
-// The product claim a user reads at install time, carried by FOUR manifests. It
+// The product claim a user reads at install time, carried by FIVE manifests. It
 // drifted once already: the wording changed upstream from "coverage" — Qlane
 // produces test cases, it does not measure coverage — and the correction reached the
 // live Server Card and server.json while all three plugin manifests kept the old
@@ -130,6 +228,9 @@ test("every manifest makes the same product claim", () => {
     read("plugin.json").description.startsWith(CLAIM),
     "portable plugin.json must open with the shared claim"
   )
+  // Cursor's manifest ships the same two servers with no userConfig either, so it
+  // carries the portable description, region sentence and all.
+  assert.equal(read(CURSOR_MANIFEST).description, read("plugin.json").description)
 })
 
 // The two below close gaps the JSON Schemas structurally cannot: the upstream
@@ -149,7 +250,7 @@ test("the plugin is named exactly `qlane`", () => {
 
 test("the repository points at the org that exists", () => {
   // `qlane-ai` is a real GitHub App slug but NOT a GitHub org — it 404s.
-  for (const f of ["plugin.json", ".claude-plugin/plugin.json"]) {
+  for (const f of ["plugin.json", ".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).repository, "https://github.com/qlaneai/agent-plugin")
   }
 })

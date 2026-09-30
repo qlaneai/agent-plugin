@@ -36,8 +36,8 @@ const CHECKS = [
     // `example` (singular — the OpenAPI spelling, not JSON Schema's `examples`)
     // on ~30 subschemas. Under `strict: true` an undeclared keyword is a hard
     // compile error, so it is declared here as the annotation it is. Declaring
-    // it per-check rather than turning strict off keeps a genuine typo in OUR
-    // two schemas loud.
+    // it per-check rather than turning strict off keeps a genuine typo in every
+    // other vendored schema loud.
     annotations: ["example"],
     // `strictRequired` is OFF by default in Ajv and only switched on by
     // `strict: true`. Upstream's Argument/Input definitions `require` a property
@@ -46,6 +46,25 @@ const CHECKS = [
     // rest of strict mode (unknown keywords, bad types, ignored `$ref` siblings)
     // enforced on this schema; `strict: false` would not.
     ajvOptions: { strictRequired: false },
+  },
+  {
+    // Cursor's own manifest. Vendored verbatim from cursor/plugins at commit
+    // fae2c6ed95821bd85f614a73e4842e13229fa5e5 (schemas/plugin.schema.json).
+    // Upstream publishes it at no versioned URL, so that commit IS its version,
+    // and the filename carries the short form.
+    //
+    // Its `mcpServers` accepts any string, object or array, so this check says
+    // nothing about cursor-mcp.json, the file ours points at — and upstream
+    // publishes no schema for that. test/manifests.test.mjs is what pins it.
+    doc: ".cursor-plugin/plugin.json",
+    schema: "schemas/cursor-plugin-fae2c6e-plugin.schema.json",
+    // Declared draft-07, like server.json's, although it keeps its definitions
+    // under `$defs` rather than draft-07's `definitions`. Ajv's draft-07 build
+    // resolves `#/$defs/…` refs all the same — an `author` with a key the
+    // `$defs/author` subschema forbids fails here — so the declared draft is
+    // still the one to compile it with.
+    draft: "07",
+    id: "https://cursor.com/schemas/cursor-plugin/plugin.json",
   },
 ]
 
