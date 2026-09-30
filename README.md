@@ -50,12 +50,22 @@ If nothing appears after adding it, check that `chat.plugins.enabled` is `true`.
 
 ### Cursor
 
-Cursor reads the root `plugin.json` and loads this plugin without changes. Add the repository
-as a marketplace, install `qlane`, then authenticate the server for your region.
+Add the repository as a marketplace, install `qlane`, then authenticate the server for your
+region.
+
+Cursor also loads `.cursor-plugin/plugin.json`, which gives the same two servers Qlane's
+pre-registered Cursor client. So Cursor signs in as Qlane's verified Cursor client, and an
+organization's default client policy admits it.
+
+Connected a Qlane server with an earlier version of this plugin? Cursor keeps that earlier
+sign-in, so sign out of the server in Cursor (or remove its stored authentication) and
+authenticate again to sign in as the verified client.
 
 ### Kiro
 
-Same as Cursor — add the repository, install, authenticate your region's server.
+Kiro reads the root `plugin.json` — the portable manifest — and loads this plugin without
+changes. Add the repository as a marketplace, install `qlane`, then authenticate the server for
+your region.
 
 ### Codex
 

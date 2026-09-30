@@ -1,6 +1,6 @@
 {
   "name": "qlane",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases.",
   "author": { "name": "Qlane", "url": "https://qlane.ai" },
   "homepage": "https://qlane.ai",

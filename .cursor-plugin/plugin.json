@@ -1,11 +1,10 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "qlane",
   "version": "0.4.0",
   "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases. Ships one server per data region — connect the one hosting your organization.",
-  "author": { "name": "Qlane", "url": "https://qlane.ai" },
   "homepage": "https://qlane.ai",
   "repository": "https://github.com/qlaneai/agent-plugin",
   "license": "MIT",
-  "keywords": ["qa", "testing", "browser", "pull-request", "mcp"]
+  "keywords": ["qa", "testing", "browser", "pull-request", "mcp"],
+  "mcpServers": "./cursor-mcp.json"
 }

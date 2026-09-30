@@ -50,7 +50,7 @@ const readJson = (p) => JSON.parse(readFileSync(new URL(p, ROOT), "utf8"))
 // manifest means adding it here — and if you forget, this script is what tells
 // you, because an undeclared file that declares a version at all is a finding
 // whatever its value.
-const DECLARED = ["plugin.json", ".claude-plugin/plugin.json"]
+const DECLARED = ["plugin.json", ".claude-plugin/plugin.json", ".cursor-plugin/plugin.json"]
 
 // Tracked JSON that legitimately declares a version that is NOT the plugin's.
 // Per-file and explicit, so adding one is a decision rather than a default.
@@ -69,9 +69,10 @@ const FOREIGN_VERSIONS = {
 // all (npm omits it for a private package that declares none), so an entry
 // would document something untrue — and the staleness half below would fail on
 // it. If package.json ever gains a version, npm mirrors it into the lockfile
-// and this is where that exemption goes. The three vendored schemas are absent
-// for the same reason: they carry versions in their $id and filenames, never in
-// a top-level `version` key, so this audit never looks at them.
+// and this is where that exemption goes. The vendored schemas under schemas/ are
+// absent for the same reason: whatever version each carries lives in its $id or
+// its filename, never in a top-level `version` key, so this audit never looks at
+// them.
 
 // Non-JSON tracked files PERMITTED to contain the version literal, with why.
 // Same prohibition as above: this is not where a forgotten manifest goes.
@@ -83,7 +84,7 @@ const FOREIGN_VERSIONS = {
 // the plugin version happens to equal the vendored schemas' line.
 const TEXT_CARRIERS = {
   "test/manifests.test.mjs":
-    "pins the version literal in an assertion about plugin.json on purpose — that pin is what makes the two-manifest agreement test non-vacuous, and a bump that skips it fails `npm test` rather than passing quietly.",
+    "pins the version literal in an assertion about plugin.json on purpose — that pin is what makes the plugin manifests' agreement test non-vacuous, and a bump that skips it fails `npm test` rather than passing quietly.",
   "scripts/validate.mjs":
     "names the vendored agent-plugins schemas, whose filenames and $id both carry the SCHEMA's own version line — unrelated to the plugin's, but a textual match on any release where the two happen to coincide.",
 }

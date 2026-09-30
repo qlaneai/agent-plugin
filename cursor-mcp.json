@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "qlane-eu": {
+      "url": "https://mcp-eu.qlane.ai/api/mcp",
+      "auth": { "CLIENT_ID": "client_01M3PNDD11GZ6DYW6MMNXDZ1S0" }
+    },
+    "qlane-us": {
+      "url": "https://mcp-us.qlane.ai/api/mcp",
+      "auth": { "CLIENT_ID": "client_01M3PNDD11GZ6DYW6MMNXDZ1S0" }
+    }
+  }
+}
