@@ -50,16 +50,23 @@ If nothing appears after adding it, check that `chat.plugins.enabled` is `true`.
 
 ### Cursor
 
-Add the repository as a marketplace, install `qlane`, then authenticate the server for your
-region.
+In Cursor's **Import Marketplace** dialog, enter the full repository URL,
+`https://github.com/qlaneai/agent-plugin` — Cursor rejects the `qlaneai/agent-plugin` shorthand
+there. Then install `qlane` and authenticate the server for your region.
 
 Cursor also loads `.cursor-plugin/plugin.json`, which gives the same two servers Qlane's
 pre-registered Cursor client. So Cursor signs in as Qlane's verified Cursor client, and an
 organization's default client policy admits it.
 
-Connected a Qlane server with an earlier version of this plugin? Cursor keeps that earlier
-sign-in, so sign out of the server in Cursor (or remove its stored authentication) and
-authenticate again to sign in as the verified client.
+Connected a Qlane server with an earlier version of this plugin? After the update, Cursor
+should ask you to authenticate the server again; do, and it signs in as the verified client. If
+it keeps working without asking, sign out of the server in Cursor (or remove its stored
+authentication) and authenticate again.
+
+Cursor can also import this plugin from a Claude Code installation. An imported copy stays at
+the version Claude Code has installed, and only a version that carries
+`.cursor-plugin/plugin.json` signs in as the verified client, so update it there first:
+`claude plugin update qlane@qlane-plugin`.
 
 ### Kiro
 
