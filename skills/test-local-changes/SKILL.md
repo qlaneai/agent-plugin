@@ -42,11 +42,11 @@ Every tool named below exists on both servers. Call it on the one you settled he
 git remote get-url origin
 ```
 
-Call `resolve_project` with the repository identity. It returns 0, 1, or several matches and **never picks one for you**.
+Call `resolve_project` with the repository identity. It returns 0, 1, or several matches and **never picks one for you**. A Qlane project is one application and can span several repositories, and each match is one of its test targets, so one project can appear more than once.
 
-- **One match** — use it.
-- **Several** — show the names and ask which one.
-- **None** — the repository is not connected to Qlane. Fall back to `list_projects` and ask the user to choose, or tell them to connect the repository first. Do not guess.
+- **One project** — use it.
+- **Several projects** — this repository belongs to more than one. Show their names and ask which one.
+- **None** — this does not prove the repository has no Qlane project. Call `list_projects` and ask the user which listed project, if any, this repository belongs to; a project can span several repositories. Do not guess.
 
 ## Step 2 — Collect the diff, and ask before spending
 

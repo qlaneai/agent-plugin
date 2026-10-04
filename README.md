@@ -1,7 +1,8 @@
 # Qlane agent plugin
 
 Installs [Qlane MCP](https://qlane.ai) into your AI coding editor, so your agent can reach
-your Qlane projects, test targets and test-case counts without leaving the editor.
+your Qlane projects, test targets and what Qlane found on your pull requests without leaving
+the editor.
 
 ## Which region?
 
@@ -105,8 +106,17 @@ Swap the host for `mcp-us.qlane.ai` if your organization is US-hosted.
 
 ## What it can do
 
-Read your projects, test targets and test-case counts, and plan tests for a local diff before
-a pull request exists. Planning a test consumes Qlane credits.
+Read your projects and test targets, and what Qlane found when it tested your pull requests:
+each run's verdicts, the defects it saw and the evidence behind them. Two skills put that to
+work:
+
+- **`/qlane:bugs`** shows what Qlane found on a pull request or a recent run — defects, failing
+  and blocked cases, the steps to reproduce them and their evidence — then looks for the likely
+  cause in your repository and proposes a fix. It only reads from Qlane, and it changes your
+  code only when you say yes.
+- **`/qlane:test-local-changes`** asks Qlane to plan tests for a local diff before a pull
+  request exists, then exercises them against your running app. Planning a test consumes Qlane
+  credits.
 
 ## Development
 
