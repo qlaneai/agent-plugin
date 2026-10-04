@@ -198,7 +198,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read("plugin.json").version, "0.5.0")
+  assert.equal(read("plugin.json").version, "0.6.0")
   for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
     assert.equal(read(f).version, read("plugin.json").version, `${f} version`)
@@ -223,7 +223,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
 const SERVER_CLAIM =
   "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases."
 const PLUGIN_CLAIM =
-  "AI QA that runs your app in a browser on every pull request: read your projects, test targets and what it found on a pull request, and plan tests for a local diff."
+  "AI QA that runs your app in a browser on every pull request: set up a test target, read what it found on a pull request, and plan tests for a local diff."
 
 test("server.json makes the server's claim, and every plugin manifest the plugin's", () => {
   assert.equal(read("server.json").description, SERVER_CLAIM)

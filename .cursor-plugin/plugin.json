@@ -1,7 +1,7 @@
 {
   "name": "qlane",
-  "version": "0.5.0",
-  "description": "AI QA that runs your app in a browser on every pull request: read your projects, test targets and what it found on a pull request, and plan tests for a local diff. Ships one server per data region — connect the one hosting your organization.",
+  "version": "0.6.0",
+  "description": "AI QA that runs your app in a browser on every pull request: set up a test target, read what it found on a pull request, and plan tests for a local diff. Ships one server per data region — connect the one hosting your organization.",
   "homepage": "https://qlane.ai",
   "repository": "https://github.com/qlaneai/agent-plugin",
   "license": "MIT",
