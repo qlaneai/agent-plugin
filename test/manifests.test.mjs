@@ -198,35 +198,42 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read("plugin.json").version, "0.4.0")
+  assert.equal(read("plugin.json").version, "0.5.0")
   for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
     assert.equal(read(f).version, read("plugin.json").version, `${f} version`)
   }
 })
 
-// The product claim a user reads at install time, carried by FIVE manifests. It
-// drifted once already: the wording changed upstream from "coverage" — Qlane
-// produces test cases, it does not measure coverage — and the correction reached the
-// live Server Card and server.json while all three plugin manifests kept the old
-// word, so every non-Claude client was still being shown the retired claim.
+// The product claims a user reads at install time. They drifted once already: the
+// wording changed upstream from "coverage" — Qlane produces test cases, it does not
+// measure coverage — and the correction reached the live Server Card and
+// server.json while all three plugin manifests kept the old word, so every
+// non-Claude client was still being shown the retired claim.
 //
-// Pinned to the literal for the same reason `version` is, and for one more: the
+// TWO claims, on purpose. server.json describes the SERVER and must equal the live
+// Server Card (live-card.test.mjs), so it changes only when the server's own card
+// does. The four plugin manifests describe the PLUGIN, which also ships skills the
+// server does not, so they say what an install can do.
+//
+// Both pinned to the literal for the same reason `version` is, and for one more: the
 // offline suite is the only guard a PR runs. live-card.test.mjs couples server.json
 // to production, but it is network-gated behind `npm run test:live`, so an
-// agreement-only assertion here would pass happily on four stale copies.
-const CLAIM =
+// agreement-only assertion here would pass happily on stale copies.
+const SERVER_CLAIM =
   "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases."
+const PLUGIN_CLAIM =
+  "AI QA that runs your app in a browser on every pull request: read your projects, test targets and what it found on a pull request, and plan tests for a local diff."
 
-test("every manifest makes the same product claim", () => {
-  assert.equal(read("server.json").description, CLAIM)
-  assert.equal(read(".claude-plugin/plugin.json").description, CLAIM)
-  assert.equal(read(".claude-plugin/marketplace.json").plugins[0].description, CLAIM)
+test("server.json makes the server's claim, and every plugin manifest the plugin's", () => {
+  assert.equal(read("server.json").description, SERVER_CLAIM)
+  assert.equal(read(".claude-plugin/plugin.json").description, PLUGIN_CLAIM)
+  assert.equal(read(".claude-plugin/marketplace.json").plugins[0].description, PLUGIN_CLAIM)
   // The portable manifest appends a region sentence — it has no userConfig to carry
   // that information — so it extends the claim rather than equalling it.
   assert.ok(
-    read("plugin.json").description.startsWith(CLAIM),
-    "portable plugin.json must open with the shared claim"
+    read("plugin.json").description.startsWith(PLUGIN_CLAIM),
+    "portable plugin.json must open with the plugin's claim"
   )
   // Cursor's manifest ships the same two servers with no userConfig either, so it
   // carries the portable description, region sentence and all.
@@ -357,35 +364,4 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   // only if they also edited the constant. Stating the invariant makes the intent
   // survive a careless find-and-replace across both files.
   assert.notEqual(MARKETPLACE_NAME, SERVER_NAME)
-})
-
-// The trap this exists for: a plugin-bundled server's tools are namespaced
-// `mcp__plugin_<plugin>_<server>__<tool>`, so renaming the SERVER silently invalidates
-// every grant in every skill. Nothing else notices — a grant that matches nothing is
-// not an error, it just produces permission prompts the author believed were
-// suppressed. PostHog and MongoDB both ship skills with this bug today.
-//
-// The `qlane-eu`/`qlane-us` rename is exactly that event, which is why this landed with
-// it rather than after the next one.
-test("the skill grants the tool namespaces that actually exist", () => {
-  const skill = readFileSync(
-    new URL("../skills/test-local-changes/SKILL.md", import.meta.url),
-    "utf8"
-  )
-  const line = skill.split("\n").find((l) => l.startsWith("allowed-tools:"))
-  assert.ok(line, "SKILL.md must declare allowed-tools")
-
-  // Every tool the skill actually calls, on BOTH servers — either region's user must
-  // get the same suppression.
-  for (const server of [EU_SERVER, US_SERVER]) {
-    for (const tool of ["resolve_project", "list_projects", "create_test_plan", "get_test_plan"]) {
-      const grant = `mcp__plugin_${SERVER_NAME}_${server}__${tool}`
-      assert.ok(line.includes(grant), `missing grant: ${grant}`)
-    }
-  }
-
-  // And the retired single-server namespace must be gone. Left behind it matches
-  // nothing, so it is invisible in every way except that it does not work.
-  const dead = `mcp__plugin_${SERVER_NAME}_${SERVER_NAME}__`
-  assert.ok(!line.includes(dead), `stale pre-regional grant left in place: ${dead}`)
 })

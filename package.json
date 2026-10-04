@@ -12,7 +12,7 @@
     "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!node_modules\"",
     "validate": "node scripts/validate.mjs",
     "check:versions": "node scripts/version-audit.mjs",
-    "test": "node --test test/manifests.test.mjs",
+    "test": "node --test test/manifests.test.mjs test/skills.test.mjs",
     "test:live": "node --test test/live-card.test.mjs",
     "check": "npm run format:check && npm run lint:md && npm run validate && npm run check:versions && npm test"
   },
