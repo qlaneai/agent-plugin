@@ -6,7 +6,7 @@
     {
       "name": "qlane",
       "source": "./",
-      "description": "AI QA that runs your app in a browser on every pull request: read your projects, test targets and what it found on a pull request, and plan tests for a local diff.",
+      "description": "AI QA that runs your app in a browser on every pull request: set up a test target, read what it found on a pull request, and plan tests for a local diff.",
       "license": "MIT",
       "homepage": "https://qlane.ai"
     }

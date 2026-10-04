@@ -49,10 +49,21 @@ const TOOLS = [
   "get_boot_check",
 ]
 
-// Tools a skill names on purpose without granting them, each with why. Naming a
-// tool in a "never call" rule is how a skill forbids it, and a grant there would
-// pre-approve exactly the call the rule forbids.
+// Tools a skill names on purpose without granting them, each with why. Two reasons
+// recur. Naming a tool in a "never call" rule is how a skill forbids it, and a grant
+// there would pre-approve exactly the call the rule forbids. And a skill that does
+// call a tool that writes or spends leaves it ungranted so the editor's own
+// permission prompt confirms each call a second time, beside the skill's own ask.
 const NAMED_NOT_GRANTED = {
+  "setup-env": {
+    create_project:
+      "writes: the editor's prompt confirms it, after the user said no project is theirs",
+    create_environment: "writes: the editor's prompt confirms each test target created",
+    start_boot_check:
+      "spends credits: the editor's prompt confirms each check, after the skill's own ask",
+    update_environment:
+      "writes, and switching pull-request testing on spends credits on every matching pull request",
+  },
   bugs: {
     create_test_plan: "forbidden: the skill is read-only, and planning spends credits",
     start_boot_check: "forbidden: a configuration check spends credits",
@@ -80,6 +91,13 @@ const grant = (server, tool) => `mcp__plugin_${SERVER_NAME}_${server}__${tool}`
 test("finds the skills it checks", () => {
   // Every other test here loops over `skills`, so an empty list would pass them all.
   assert.ok(skills.length >= 2, `expected at least two skills, found ${skills.length}`)
+  // An exception list keyed on a skill that does not exist checks nothing.
+  for (const dir of Object.keys(NAMED_NOT_GRANTED)) {
+    assert.ok(
+      skills.some((s) => s.dir === dir),
+      `NAMED_NOT_GRANTED names no skill called ${dir}`
+    )
+  }
 })
 
 test("every skill's frontmatter names it after its directory and describes it", () => {

@@ -106,10 +106,18 @@ Swap the host for `mcp-us.qlane.ai` if your organization is US-hosted.
 
 ## What it can do
 
-Read your projects and test targets, and what Qlane found when it tested your pull requests:
-each run's verdicts, the defects it saw and the evidence behind them. Two skills put that to
-work:
+Set up a test target for a repository, read your projects and test targets, and see what Qlane
+found when it tested your pull requests: each run's verdicts, the defects it saw and the
+evidence behind them. Three skills put that to work:
 
+- **`/qlane:setup-env`** takes a repository to a test target whose configuration check passed.
+  It finds the Qlane project the repository belongs to, or creates one, prepares the
+  repository from Qlane's published setup pages
+  ([docs.qlane.ai/connect](https://docs.qlane.ai/connect/overview)), creates the
+  test target, and has you enter
+  its variables and test credentials on a Qlane page — they never pass through the editor. It
+  asks before every change, and before a configuration check or pull-request testing, both of
+  which consume Qlane credits.
 - **`/qlane:bugs`** shows what Qlane found on a pull request or a recent run — defects, failing
   and blocked cases, the steps to reproduce them and their evidence — then looks for the likely
   cause in your repository and proposes a fix. It only reads from Qlane, and it changes your
