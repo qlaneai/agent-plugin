@@ -198,7 +198,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read("plugin.json").version, "0.6.0")
+  assert.equal(read("plugin.json").version, "0.6.1")
   for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
     assert.equal(read(f).version, read("plugin.json").version, `${f} version`)

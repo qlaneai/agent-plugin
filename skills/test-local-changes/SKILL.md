@@ -1,6 +1,6 @@
 ---
 name: test-local-changes
-description: Test uncommitted local changes before opening a pull request. Asks Qlane to plan what should be tested for the current diff, then exercises those cases against the running app — driving the browser, reading logs and checking data where available — and reports suspected bugs for the developer to triage. Use when the user has local edits and asks to test them, check for regressions, verify a change before pushing, or find what their change might have broken.
+description: Test uncommitted local changes before opening a pull request. Asks Qlane to plan what should be tested for the current diff, then exercises those cases against the running app — driving the browser, reading logs and checking data where available — and reports suspected bugs for the developer to triage. Use when the user has local edits and asks to test them, check for regressions, verify a change before pushing, or find what their change might have broken — including plain requests such as "test my changes", "test this before I push" or "did I break anything".
 license: MIT
 compatibility: Requires git and a Qlane account. Browser cases need browser-automation tooling in the session; without it those cases are reported as not checked rather than skipped silently.
 allowed-tools: mcp__plugin_qlane_qlane-eu__resolve_project mcp__plugin_qlane_qlane-eu__list_projects mcp__plugin_qlane_qlane-eu__create_test_plan mcp__plugin_qlane_qlane-eu__get_test_plan mcp__plugin_qlane_qlane-us__resolve_project mcp__plugin_qlane_qlane-us__list_projects mcp__plugin_qlane_qlane-us__create_test_plan mcp__plugin_qlane_qlane-us__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
@@ -48,7 +48,7 @@ Call `resolve_project` with the repository identity. It returns 0, 1, or several
 - **Several projects** — this repository belongs to more than one. Show their names and ask which one.
 - **None** — this does not prove the repository has no Qlane project. Call `list_projects` and ask the user which listed project, if any, this repository belongs to; a project can span several repositories. Do not guess.
 
-## Step 2 — Collect the diff, and ask before spending
+## Step 2 — Collect the diff
 
 ```bash
 git diff HEAD          # uncommitted work, staged and unstaged
@@ -56,7 +56,7 @@ git diff HEAD          # uncommitted work, staged and unstaged
 
 If that is empty, check `git status` — there may be untracked files the user meant to include, or nothing to test at all. Say which, rather than planning an empty diff.
 
-**Planning costs the user credits. Ask before you call `create_test_plan`.** Show them what you are about to submit — the project name and a one-line summary of the diff (files touched, rough size) — and wait for a yes.
+Before calling `create_test_plan`, tell the user what you are submitting: the project name and a one-line summary of the diff (files touched, rough size).
 
 Send a **focused** diff rather than everything you can find. Only the beginning and end of a large diff reach the planner, so a diff spanning unrelated work produces a worse plan than one scoped to the change being tested. If the working tree mixes several concerns, say so and offer to plan just the relevant paths.
 

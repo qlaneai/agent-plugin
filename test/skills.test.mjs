@@ -52,21 +52,20 @@ const TOOLS = [
 // Tools a skill names on purpose without granting them, each with why. Two reasons
 // recur. Naming a tool in a "never call" rule is how a skill forbids it, and a grant
 // there would pre-approve exactly the call the rule forbids. And a skill that does
-// call a tool that writes or spends leaves it ungranted so the editor's own
-// permission prompt confirms each call a second time, beside the skill's own ask.
+// call a tool that writes leaves it ungranted so the editor's own permission
+// prompt confirms each call a second time, beside the skill's own ask. A tool that
+// only runs work, such as a configuration check or a test plan, is granted.
 const NAMED_NOT_GRANTED = {
   "setup-env": {
     create_project:
       "writes: the editor's prompt confirms it, after the user said no project is theirs",
     create_environment: "writes: the editor's prompt confirms each test target created",
-    start_boot_check:
-      "spends credits: the editor's prompt confirms each check, after the skill's own ask",
     update_environment:
-      "writes, and switching pull-request testing on spends credits on every matching pull request",
+      "writes: switching a trigger on changes which pull requests start a test run",
   },
   bugs: {
-    create_test_plan: "forbidden: the skill is read-only, and planning spends credits",
-    start_boot_check: "forbidden: a configuration check spends credits",
+    create_test_plan: "forbidden: the skill is read-only",
+    start_boot_check: "forbidden: the skill is read-only",
     update_environment: "forbidden: it changes a test target; named in a blocked case's remedy",
     request_environment_variables: "forbidden: named in a blocked case's remedy only",
     request_test_credentials: "forbidden: named in a blocked case's remedy only",

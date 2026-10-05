@@ -116,15 +116,13 @@ evidence behind them. Three skills put that to work:
   ([docs.qlane.ai/connect](https://docs.qlane.ai/connect/overview)), creates the
   test target, and has you enter
   its variables and test credentials on a Qlane page — they never pass through the editor. It
-  asks before every change, and before a configuration check or pull-request testing, both of
-  which consume Qlane credits.
+  asks before every change to your repository or to Qlane's configuration.
 - **`/qlane:bugs`** shows what Qlane found on a pull request or a recent run — defects, failing
   and blocked cases, the steps to reproduce them and their evidence — then looks for the likely
   cause in your repository and proposes a fix. It only reads from Qlane, and it changes your
   code only when you say yes.
 - **`/qlane:test-local-changes`** asks Qlane to plan tests for a local diff before a pull
-  request exists, then exercises them against your running app. Planning a test consumes Qlane
-  credits.
+  request exists, then exercises them against your running app.
 
 ## Development
 
