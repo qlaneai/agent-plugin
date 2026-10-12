@@ -173,3 +173,28 @@ test("every Qlane grant is a real tool, granted the same on both servers", () =>
     }
   }
 })
+
+// One numbered step of a skill, from its heading to the next one, so a pin reads the
+// step it is about and cannot be satisfied by the same words in another step.
+function stepOf(body, n) {
+  const start = body.indexOf(`## Step ${n} —`)
+  assert.ok(start >= 0, `a skill must carry step ${n}`)
+  const end = body.indexOf("\n## ", start + 1)
+  return body.slice(start, end === -1 ? undefined : end)
+}
+
+// A stored test credential whose username is the account's NAME, where the sign-in form
+// takes the email the seed created, signs in nowhere: every case that needs it is blocked,
+// and the configuration check cannot see it. The skill closes that in two places, and each
+// is pinned in the step it belongs to.
+test("setup-env establishes the sign-in identifier, and tells the developer what to enter", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step4 = stepOf(setup.body, 4)
+  assert.match(step4, /establish what the sign-in form takes as the account's identifier/)
+  assert.match(step4, /record the exact value the seed step or fixture creates for that field/)
+  assert.match(step4, /A credential's name is only a label, never the identifier\./)
+  const step6 = stepOf(setup.body, 6)
+  assert.match(step6, /tell the developer exactly what to enter as each account's username/)
+  assert.match(step6, /tell them it will not sign in/)
+})
