@@ -77,12 +77,7 @@ const NAMED_NOT_GRANTED = {
 }
 
 /** The shared region step: from its heading to the next `## ` heading. */
-function regionStep(body) {
-  const start = body.indexOf("## Step 0 —")
-  assert.ok(start >= 0, "a skill must carry the region step")
-  const end = body.indexOf("\n## ", start + 1)
-  return body.slice(start, end === -1 ? undefined : end)
-}
+const regionStep = (body) => stepOf(body, 0)
 
 const grantsOf = (skill) => new Set((skill.frontmatter["allowed-tools"] ?? "").split(/\s+/))
 const grant = (server, tool) => `mcp__plugin_${SERVER_NAME}_${server}__${tool}`
@@ -192,9 +187,13 @@ test("setup-env establishes the sign-in identifier, and tells the developer what
   assert.ok(setup, "the setup-env skill exists")
   const step4 = stepOf(setup.body, 4)
   assert.match(step4, /establish what the sign-in form takes as the account's identifier/)
-  assert.match(step4, /record the exact value the seed step or fixture creates for that field/)
+  assert.match(step4, /record the exact value it creates for that field/)
+  assert.match(step4, /For an account the tester signs up or one that already exists/)
   assert.match(step4, /A credential's name is only a label, never the identifier\./)
   const step6 = stepOf(setup.body, 6)
   assert.match(step6, /tell the developer exactly what to enter as each account's username/)
+  // Asked, not waited for: Qlane never shows a stored username back, so a wrong one is
+  // caught here or by the first run that tries to sign in.
+  assert.match(step6, /ask which username they entered/)
   assert.match(step6, /tell them it will not sign in/)
 })
