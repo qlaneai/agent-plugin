@@ -188,7 +188,7 @@ test("setup-env establishes the sign-in identifier, and tells the developer what
   const step4 = stepOf(setup.body, 4)
   assert.match(step4, /establish what the sign-in form takes as the account's identifier/)
   assert.match(step4, /record the exact value it creates for that field/)
-  assert.match(step4, /For an account the tester signs up or one that already exists/)
+  assert.match(step4, /For an account that already exists, record which kind of identifier/)
   assert.match(step4, /A credential's name is only a label, never the identifier\./)
   const step6 = stepOf(setup.body, 6)
   assert.match(step6, /tell the developer exactly what to enter as each account's username/)
@@ -196,4 +196,43 @@ test("setup-env establishes the sign-in identifier, and tells the developer what
   // caught here or by the first run that tries to sign in.
   assert.match(step6, /ask which username they entered/)
   assert.match(step6, /tell them it will not sign in/)
+})
+
+// On a sandbox target the tester signs itself up through its own inbox and setup creates
+// the state a case needs, so a stored account or a seed is the exception step 4 has to
+// justify, not the default. An agent that reads it the other way writes seed scripts for an
+// app that needed none, or calls a target with no credentials untestable.
+test("setup-env makes signing up and setup the default, and stored accounts the exception", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step4 = stepOf(setup.body, 4)
+  assert.match(step4, /most applications need neither a stored test account nor a seed/)
+  assert.match(step4, /an empty `testCredentials` list in `get_environment` is not a problem/)
+  assert.match(step4, /check the application rather than assume: does it have self sign-up/)
+  // The default is a check, so the conditions it checks for are pinned with it.
+  assert.match(step4, /Plan a stored account only where the answer is no/)
+  assert.match(
+    step4,
+    /invite-only, created by an administrator or signed in through single sign-on/
+  )
+  assert.match(step4, /a role or a plan that a new sign-up does not get/)
+  assert.match(step4, /the variables it sends mail with belong with those it needs to start/)
+  assert.match(step4, /Plan a seed only for state the application's pages cannot create/)
+  assert.match(step4, /they must point at a real sender: a mail catcher/)
+  assert.match(step4, /except the mail that signing up depends on, which needs real settings/)
+  assert.match(step4, /point its variables at a test or staging instance, never production/)
+  assert.match(step4, /A `SimpleSandbox` target has no step that runs once the application is up/)
+  // A URL target is the exception: nothing is set up and its sign-ups persist, so every
+  // account its tests sign in with is a stored one, and 0.6.2's identifier check covers it.
+  assert.match(step4, /A `URL` target has no setup/)
+  assert.match(step4, /plan a stored account for each account the tests sign in with/)
+  assert.match(step4, /for every stored account you plan on any kind of target, establish/)
+  const step6 = stepOf(setup.body, 6)
+  assert.match(step6, /Call `request_test_credentials` only for the stored accounts step 4 planned/)
+  assert.match(step6, /If step 4 planned none, skip it: on a `SimpleSandbox` or `Compose` target/)
+  const step9 = stepOf(setup.body, 9)
+  assert.match(step9, /ask whether a tester can get an account and the state a case needs/)
+  assert.match(step9, /no tool here reads it: ask the developer to confirm it is on/)
+  assert.match(step9, /On a `URL` target nothing is set up before testing/)
+  assert.match(step9, /each account the tests sign in with needs a test credential through step 6/)
 })
