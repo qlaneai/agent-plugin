@@ -27,5 +27,6 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
-      - run: npm run check
+          cache-dependency-path: tooling/package-lock.json
+      - run: npm ci --prefix tooling
+      - run: npm run check --prefix tooling

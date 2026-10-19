@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 // must never be able to block a docs PR.
 //
 // Resolved against this file, not the cwd — same reason as manifests.test.mjs.
-const read = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"))
+const read = (p) => JSON.parse(readFileSync(new URL(`../../${p}`, import.meta.url), "utf8"))
 const CARD_URL = "https://qlane.ai/.well-known/mcp/server-card.json"
 
 test("server.json agrees with the live Server Card", async () => {

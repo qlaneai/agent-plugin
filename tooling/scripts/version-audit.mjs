@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url"
 // Resolved against this file, not the cwd — same reason as the test files. It
 // also fixes the paths `git ls-files` returns, which are relative to the
 // directory git ran in rather than to the repo.
-const ROOT = new URL("../", import.meta.url)
+const ROOT = new URL("../../", import.meta.url)
 const readJson = (p) => JSON.parse(readFileSync(new URL(p, ROOT), "utf8"))
 
 // WHAT THIS GUARDS, in two halves that partition the tracked files between them.
@@ -80,12 +80,12 @@ const FOREIGN_VERSIONS = {
 // Unlike the two lists above, entries here are permissions rather than
 // assertions, and are NOT staleness-checked — whether a file collides depends on
 // the current version's value, so an entry matching nothing today is expected,
-// not stale. scripts/validate.mjs is the case in point: it collides only while
+// not stale. tooling/scripts/validate.mjs is the case in point: it collides only while
 // the plugin version happens to equal the vendored schemas' line.
 const TEXT_CARRIERS = {
-  "test/manifests.test.mjs":
+  "tooling/test/manifests.test.mjs":
     "pins the version literal in an assertion about plugin.json on purpose — that pin is what makes the plugin manifests' agreement test non-vacuous, and a bump that skips it fails `npm test` rather than passing quietly.",
-  "scripts/validate.mjs":
+  "tooling/scripts/validate.mjs":
     "names the vendored agent-plugins schemas, whose filenames and $id both carry the SCHEMA's own version line — unrelated to the plugin's, but a textual match on any release where the two happen to coincide.",
 }
 // A prose mention in a tracked non-JSON file (a README, a changelog) trips this

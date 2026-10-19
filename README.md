@@ -126,17 +126,23 @@ evidence behind them. Three skills put that to work:
 
 ## Development
 
+The development tooling lives in `tooling/`, its own npm package, and nothing in it ships as part
+of the plugin. It is kept out of the repository root on purpose: Claude Code installs the
+packages of any plugin whose root holds a `package.json` and a lockfile, so a root
+`package.json` would install these dev tools on every user's machine. A test enforces this.
+
 ```bash
-npm ci
-npm run check
+npm ci --prefix tooling
+npm run check --prefix tooling
 ```
 
 `check` runs Prettier, markdownlint, JSON Schema validation of the portable manifests, and the
-unit tests. It makes no network calls, so it works offline and in a sandboxed CI runner.
+unit tests, over the whole repository. It makes no network calls, so it works offline and in a
+sandboxed CI runner.
 
 ```bash
-npm run format      # apply Prettier
-npm run lint:md:fix # apply markdownlint's safe fixes
+npm run format --prefix tooling      # apply Prettier
+npm run lint:md:fix --prefix tooling # apply markdownlint's safe fixes
 ```
 
 Two checks need the Claude Code CLI and so are not part of `check`, which has to run on a

@@ -3,7 +3,12 @@ import Ajv2020 from "ajv/dist/2020.js"
 import Ajv07 from "ajv"
 import addFormats from "ajv-formats"
 
-const read = (p) => JSON.parse(readFileSync(p, "utf8"))
+// Resolved against this file, not the cwd — same reason as the test files.
+// Documents are the plugin's, at the repo root; schemas are vendored beside this
+// script, in the tooling package.
+const ROOT = new URL("../../", import.meta.url)
+const TOOLING = new URL("../", import.meta.url)
+const read = (url) => JSON.parse(readFileSync(url, "utf8"))
 
 const CHECKS = [
   {
@@ -79,12 +84,14 @@ for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHEC
     failed = true
     continue
   }
-  if (!existsSync(doc)) {
+  const docUrl = new URL(doc, ROOT)
+  const schemaUrl = new URL(schema, TOOLING)
+  if (!existsSync(docUrl)) {
     console.error(`✗ ${doc} — missing`)
     failed = true
     continue
   }
-  if (!existsSync(schema)) {
+  if (!existsSync(schemaUrl)) {
     console.error(`✗ ${schema} — missing`)
     failed = true
     continue
@@ -94,7 +101,7 @@ for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHEC
   // message alone does not say which file was being read.
   let reading = schema
   try {
-    const schemaDoc = read(schema)
+    const schemaDoc = read(schemaUrl)
     // A vendored schema is only worth compiling if it IS the schema we think it is.
     // An empty object, a fetch-error body, or a truncated file all compile fine and
     // then accept every document, so the run reports green while checking nothing.
@@ -118,7 +125,7 @@ for (const { doc, schema, draft, id, annotations = [], ajvOptions = {} } of CHEC
     for (const keyword of annotations) ajv.addKeyword({ keyword })
     const validate = ajv.compile(schemaDoc)
     reading = doc
-    if (validate(read(doc))) {
+    if (validate(read(docUrl))) {
       console.log(`✓ ${doc}`)
     } else {
       console.error(`✗ ${doc}`)
