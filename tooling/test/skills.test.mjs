@@ -248,3 +248,22 @@ test("setup-env makes signing up and setup the default, and stored accounts the 
   assert.match(step9, /On a `URL` target nothing is set up before testing/)
   assert.match(step9, /each account the tests sign in with needs a test credential through step 6/)
 })
+
+// Anthropic's directory asks whether any skill sends data to a service other than the
+// declared connectors, and its security scan fails a version that contacts somewhere the
+// README does not disclose. So every outside service a skill is granted is named in the
+// plugin README's "What it sends, and where" section: each host in a granted command, and
+// GitHub whenever a skill may run the GitHub CLI. Derived from the grants, so a skill that
+// gains a new destination fails here until the README says so.
+test("the plugin README discloses every outside service a skill is granted", () => {
+  const readme = readFileSync(new URL("../../plugins/qlane/README.md", import.meta.url), "utf8")
+  const section = readme.split("## What it sends, and where")[1]?.split("\n## ")[0]
+  assert.ok(section, "plugins/qlane/README.md must have a 'What it sends, and where' section")
+  const granted = skills.map((s) => s.frontmatter["allowed-tools"] ?? "").join(" ")
+  const hosts = new Set([...granted.matchAll(/https?:\/\/([^/\s)]+)/g)].map((m) => m[1]))
+  assert.ok(hosts.size > 0, "expected at least one granted host (docs.qlane.ai)")
+  for (const host of hosts) assert.ok(section.includes(host), `README does not disclose ${host}`)
+  if (/Bash\(gh /.test(granted)) {
+    assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
+  }
+})

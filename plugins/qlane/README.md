@@ -118,6 +118,30 @@ evidence behind them. Three skills put that to work:
 - **`/qlane:test-local-changes`** asks Qlane to plan tests for a local diff before a pull
   request exists, then exercises them against your running app.
 
+## What it sends, and where
+
+The plugin runs no code of its own: it has no hooks and no local servers. Everything below is
+done by Claude, following the skills, in your session.
+
+- **Qlane's servers**, `mcp-eu.qlane.ai` or `mcp-us.qlane.ai`, whichever you connected. The
+  skills send your repository's remote URL to find its Qlane project, and the identifiers of the
+  projects, test targets, runs and pull requests they read. `/qlane:setup-env` sends a test
+  target's configuration when it creates or changes one. `/qlane:test-local-changes` sends your
+  local diff, with a short title and description, for Qlane to plan tests from. Variable values
+  and test-credential passwords never pass through the plugin: you enter them on a Qlane page.
+- **GitHub, through your own GitHub CLI.** If `gh` is installed, `/qlane:bugs` runs
+  `gh pr view` to find the pull request for your current branch, with your own GitHub sign-in.
+  Without it, the skill asks you for the pull request number.
+- **docs.qlane.ai.** `/qlane:setup-env` downloads up to three public setup pages with `curl`.
+  It sends nothing to them.
+- **Your own git remote.** `/qlane:setup-env` commits the files it prepared and pushes them to
+  the branch your test target uses, with your own git access, and only after you say yes.
+- **Your running app.** `/qlane:test-local-changes` drives your locally running app in a browser,
+  at the address you give it, when your session has browser tooling.
+
+Everything else the skills read, such as `git log`, `git diff` and your files, stays in your
+session.
+
 ## License
 
 [MIT](LICENSE).
