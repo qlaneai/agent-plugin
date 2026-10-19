@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs"
 
 // Resolved against this file, not the cwd, so the suite passes when run from
 // inside test/ as well as from the repo root.
-const read = (p) => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"))
+const read = (p) => JSON.parse(readFileSync(new URL(`../../${p}`, import.meta.url), "utf8"))
 const ENDPOINT_PATH = "/api/mcp"
 const EU_HOST = "mcp-eu.qlane.ai"
 const US_HOST = "mcp-us.qlane.ai"
@@ -98,7 +98,7 @@ test("the Cursor manifest's mcpServers resolves to the sidecar, which exists", (
   // Compared as resolved URLs, so `./cursor-mcp.json` and `cursor-mcp.json` are the same
   // answer. Pointing it at the portable mcp.json would also name a file that exists, and
   // would quietly undo this whole block; this is what fails it.
-  const root = new URL("../", import.meta.url)
+  const root = new URL("../../", import.meta.url)
   const target = new URL(ref, root)
   assert.equal(target.href, new URL(SIDECAR, root).href)
   assert.ok(existsSync(target), `${ref} must exist`)
@@ -177,7 +177,7 @@ test("no manifest contains a placeholder of any kind", () => {
     ".claude-plugin/plugin.json",
     CURSOR_MANIFEST,
   ]) {
-    const raw = readFileSync(new URL(`../${f}`, import.meta.url), "utf8")
+    const raw = readFileSync(new URL(`../../${f}`, import.meta.url), "utf8")
     assert.ok(!raw.includes("${"), `${f} must contain no placeholder`)
   }
 })
@@ -198,7 +198,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read("plugin.json").version, "0.6.3")
+  assert.equal(read("plugin.json").version, "0.6.4")
   for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
     assert.equal(read(f).version, read("plugin.json").version, `${f} version`)
@@ -309,7 +309,7 @@ test("README.md exists and is not empty", () => {
   // face — and this task's main deliverable — is gone. Same vacuity class as a bare
   // `node --test` discovering no test files. This assertion is what makes the lint
   // gate non-vacuous, so it belongs in the suite rather than in the linter's config.
-  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8")
+  const readme = readFileSync(new URL("../../README.md", import.meta.url), "utf8")
   assert.ok(readme.trim().length > 0, "README.md must exist and be non-empty")
 })
 
@@ -364,4 +364,51 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   // only if they also edited the constant. Stating the invariant makes the intent
   // survive a careless find-and-replace across both files.
   assert.notEqual(MARKETPLACE_NAME, SERVER_NAME)
+})
+
+// Anthropic's directory reads these four links, and the icon below, for the plugin's
+// listing; Claude Code ignores them. The portal warns when privacyPolicyUrl is missing.
+// Only the Claude manifest carries them: the portable schema is
+// `additionalProperties: false`.
+test("the Claude manifest carries the directory listing's links", () => {
+  const manifest = read(".claude-plugin/plugin.json")
+  assert.deepEqual(
+    {
+      documentationUrl: manifest.documentationUrl,
+      supportUrl: manifest.supportUrl,
+      privacyPolicyUrl: manifest.privacyPolicyUrl,
+      termsOfServiceUrl: manifest.termsOfServiceUrl,
+    },
+    {
+      documentationUrl: "https://docs.qlane.ai",
+      supportUrl: "https://qlane.ai/contact",
+      privacyPolicyUrl: "https://qlane.ai/privacy",
+      termsOfServiceUrl: "https://qlane.ai/terms",
+    }
+  )
+})
+
+// The portal takes the icon only the FIRST time a submission is saved or submitted, so
+// a file it rejects cannot be fixed later by replacing it. Its rule: a square PNG,
+// 512 to 2048 px a side, under 2 MB. The manifest names it explicitly — the documented
+// `icon` field — and the file checked is the one it names. Width and height are read
+// from the PNG header.
+test("the listing icon is a square PNG the directory accepts", () => {
+  const { icon } = read(".claude-plugin/plugin.json")
+  assert.equal(icon, "./.claude-plugin/icon.png")
+  const png = readFileSync(new URL(`../../${icon}`, import.meta.url))
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const width = png.readUInt32BE(16)
+  const height = png.readUInt32BE(20)
+  assert.equal(width, height, "icon must be square")
+  assert.ok(width >= 512 && width <= 2048, `icon is ${width}px a side`)
+  assert.ok(png.length < 2 * 1024 * 1024, `icon is ${png.length} bytes`)
+})
+
+// Claude Code runs a package install for any plugin whose ROOT holds a package.json
+// beside a lockfile, and nothing can switch it off; the directory holds every such
+// version for a reviewer ("Dependencies install from a lockfile"). This repo's root is
+// the plugin root, so the dev tooling's package.json lives in tooling/ instead.
+test("the plugin root holds no package.json, so installing the plugin installs nothing", () => {
+  assert.equal(existsSync(new URL("../../package.json", import.meta.url)), false)
 })

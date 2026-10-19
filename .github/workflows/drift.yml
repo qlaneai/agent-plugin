@@ -32,9 +32,10 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
+          cache-dependency-path: tooling/package-lock.json
+      - run: npm ci --prefix tooling
       - id: live
-        run: npm run test:live
+        run: npm run test:live --prefix tooling
 
       # Gated on THIS step's own conclusion, never a bare `failure()`: a checkout
       # hiccup or an `npm ci` registry blip would otherwise file an issue whose

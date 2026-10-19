@@ -1,15 +1,15 @@
 {
-  "name": "@qlaneai/agent-plugin",
+  "name": "@qlaneai/agent-plugin-tooling",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\"",
-    "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!node_modules\"",
+    "format": "cd .. && prettier --write .",
+    "format:check": "cd .. && prettier --check .",
+    "lint:md": "cd .. && markdownlint-cli2 \"**/*.md\" \"!**/node_modules\"",
+    "lint:md:fix": "cd .. && markdownlint-cli2 --fix \"**/*.md\" \"!**/node_modules\"",
     "validate": "node scripts/validate.mjs",
     "check:versions": "node scripts/version-audit.mjs",
     "test": "node --test test/manifests.test.mjs test/skills.test.mjs",

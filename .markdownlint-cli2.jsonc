@@ -27,7 +27,7 @@
   // markdownlint-cli2 globs with `dot: true`. Agent tooling writes `*.md` under
   // `.git/` (e.g. `.git/sdd/*.md`), which would fail this gate on a clean
   // checkout for every contributor, on files none of them wrote or could fix.
-  "ignores": ["node_modules", ".git"],
+  "ignores": ["**/node_modules", ".git"],
 
   "config": {
     // Disables the 23 rules that overlap with Prettier's formatter, including

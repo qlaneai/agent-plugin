@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs"
 
 // Every skill under skills/, read from disk rather than listed, so a skill added
 // later is checked by every test here without anyone remembering to register it.
-const SKILLS_DIR = new URL("../skills/", import.meta.url)
+const SKILLS_DIR = new URL("../../skills/", import.meta.url)
 const skills = readdirSync(SKILLS_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => {
