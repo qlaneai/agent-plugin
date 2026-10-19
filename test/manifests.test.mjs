@@ -198,7 +198,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read("plugin.json").version, "0.6.3")
+  assert.equal(read("plugin.json").version, "0.6.4")
   for (const f of [".claude-plugin/plugin.json", CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read("plugin.json").name, `${f} name`)
     assert.equal(read(f).version, read("plugin.json").version, `${f} version`)
@@ -364,4 +364,25 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   // only if they also edited the constant. Stating the invariant makes the intent
   // survive a careless find-and-replace across both files.
   assert.notEqual(MARKETPLACE_NAME, SERVER_NAME)
+})
+
+// The directory listing reads its privacy policy link and its icon from the Claude
+// manifest's folder; the developer portal warns on each when it is missing. Only the
+// Claude manifest carries privacyPolicyUrl: the portable schema is
+// `additionalProperties: false`.
+test("the Claude manifest links Qlane's privacy policy", () => {
+  assert.equal(read(".claude-plugin/plugin.json").privacyPolicyUrl, "https://qlane.ai/privacy")
+})
+
+// The portal takes the icon only the FIRST time a submission is saved or submitted, so
+// a file it rejects cannot be fixed later by replacing it. Its rule: a square PNG,
+// 512 to 2048 px a side, under 2 MB. Width and height are read from the PNG header.
+test("the listing icon is a square PNG the directory accepts", () => {
+  const png = readFileSync(new URL("../.claude-plugin/icon.png", import.meta.url))
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const width = png.readUInt32BE(16)
+  const height = png.readUInt32BE(20)
+  assert.equal(width, height, "icon must be square")
+  assert.ok(width >= 512 && width <= 2048, `icon is ${width}px a side`)
+  assert.ok(png.length < 2 * 1024 * 1024, `icon is ${png.length} bytes`)
 })
