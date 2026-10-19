@@ -1,0 +1,14 @@
+{
+  "name": "qlane-plugin",
+  "owner": { "name": "Qlane", "email": "support@qlane.ai" },
+  "metadata": {
+    "description": "The Qlane agent plugin — AI QA that runs your app in a browser on every pull request."
+  },
+  "plugins": [
+    {
+      "name": "qlane",
+      "source": "plugins/qlane",
+      "description": "AI QA that runs your app in a browser on every pull request: set up a test target, read what it found on a pull request, and plan tests for a local diff."
+    }
+  ]
+}

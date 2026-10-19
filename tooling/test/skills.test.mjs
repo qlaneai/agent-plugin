@@ -2,15 +2,18 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readdirSync, readFileSync } from "node:fs"
 
-// Every skill under skills/, read from disk rather than listed, so a skill added
+// Every skill under plugins/qlane/skills/, read from disk rather than listed, so a skill added
 // later is checked by every test here without anyone remembering to register it.
-const SKILLS_DIR = new URL("../../skills/", import.meta.url)
+const SKILLS_DIR = new URL("../../plugins/qlane/skills/", import.meta.url)
 const skills = readdirSync(SKILLS_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => {
     const text = readFileSync(new URL(`${d.name}/SKILL.md`, SKILLS_DIR), "utf8")
     const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
-    assert.ok(match, `skills/${d.name}/SKILL.md must open with a --- frontmatter block`)
+    assert.ok(
+      match,
+      `plugins/qlane/skills/${d.name}/SKILL.md must open with a --- frontmatter block`
+    )
     const frontmatter = Object.fromEntries(
       match[1].split("\n").map((line) => {
         const at = line.indexOf(":")
@@ -96,11 +99,14 @@ test("finds the skills it checks", () => {
 
 test("every skill's frontmatter names it after its directory and describes it", () => {
   for (const s of skills) {
-    assert.equal(s.frontmatter.name, s.dir, `skills/${s.dir} name`)
+    assert.equal(s.frontmatter.name, s.dir, `plugins/qlane/skills/${s.dir} name`)
     const description = s.frontmatter.description ?? ""
-    assert.ok(description.length > 0, `skills/${s.dir} must have a description`)
+    assert.ok(description.length > 0, `plugins/qlane/skills/${s.dir} must have a description`)
     // The agent-skills limit; a longer one is cut where an editor shows it.
-    assert.ok(description.length <= 1024, `skills/${s.dir} description is ${description.length}`)
+    assert.ok(
+      description.length <= 1024,
+      `plugins/qlane/skills/${s.dir} description is ${description.length}`
+    )
   }
 })
 
@@ -114,7 +120,7 @@ test("every skill carries the region step word for word", () => {
     assert.equal(
       regionStep(s.body),
       reference,
-      `skills/${s.dir} region step differs from ${first.dir}'s`
+      `plugins/qlane/skills/${s.dir} region step differs from ${first.dir}'s`
     )
   }
 })
@@ -126,14 +132,17 @@ test("every tool a skill names is granted on both servers, unless it is named to
     // The region step names tools only to say what a connected server looks like.
     const body = s.body.replace(regionStep(s.body), "")
     const named = TOOLS.filter((t) => new RegExp(`\\b${t}\\b`).test(body))
-    assert.ok(named.length > 0, `skills/${s.dir} names no Qlane tool`)
+    assert.ok(named.length > 0, `plugins/qlane/skills/${s.dir} names no Qlane tool`)
     for (const tool of named) {
       for (const server of SERVERS) {
         const g = grant(server, tool)
         if (tool in exceptions) {
-          assert.ok(!grants.has(g), `skills/${s.dir} grants ${g}, which it names only to forbid`)
+          assert.ok(
+            !grants.has(g),
+            `plugins/qlane/skills/${s.dir} grants ${g}, which it names only to forbid`
+          )
         } else {
-          assert.ok(grants.has(g), `skills/${s.dir} is missing grant ${g}`)
+          assert.ok(grants.has(g), `plugins/qlane/skills/${s.dir} is missing grant ${g}`)
         }
       }
     }
@@ -141,7 +150,7 @@ test("every tool a skill names is granted on both servers, unless it is named to
     for (const tool of Object.keys(exceptions)) {
       assert.ok(
         named.includes(tool),
-        `skills/${s.dir} exception for ${tool}, which it does not name`
+        `plugins/qlane/skills/${s.dir} exception for ${tool}, which it does not name`
       )
     }
   }
@@ -158,12 +167,15 @@ test("every Qlane grant is a real tool, granted the same on both servers", () =>
       const m = g.match(/^mcp__plugin_qlane_(qlane-eu|qlane-us)__([a-z_]+)$/)
       // The retired single-server namespace, `mcp__plugin_qlane_qlane__…`, fails here:
       // left behind it matches nothing, so it is invisible except that it does not work.
-      assert.ok(m, `skills/${s.dir} grant ${g} is not in a regional namespace`)
-      assert.ok(TOOLS.includes(m[2]), `skills/${s.dir} grants ${m[2]}, which is not a Qlane tool`)
+      assert.ok(m, `plugins/qlane/skills/${s.dir} grant ${g} is not in a regional namespace`)
+      assert.ok(
+        TOOLS.includes(m[2]),
+        `plugins/qlane/skills/${s.dir} grants ${m[2]}, which is not a Qlane tool`
+      )
       const other = m[1] === "qlane-eu" ? "qlane-us" : "qlane-eu"
       assert.ok(
         qlane.includes(grant(other, m[2])),
-        `skills/${s.dir} grants ${m[2]} on ${m[1]} only`
+        `plugins/qlane/skills/${s.dir} grants ${m[2]} on ${m[1]} only`
       )
     }
   }

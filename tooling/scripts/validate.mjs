@@ -4,7 +4,7 @@ import Ajv07 from "ajv"
 import addFormats from "ajv-formats"
 
 // Resolved against this file, not the cwd — same reason as the test files.
-// Documents are the plugin's, at the repo root; schemas are vendored beside this
+// Documents are paths from the repo root; schemas are vendored beside this
 // script, in the tooling package.
 const ROOT = new URL("../../", import.meta.url)
 const TOOLING = new URL("../", import.meta.url)
@@ -12,13 +12,13 @@ const read = (url) => JSON.parse(readFileSync(url, "utf8"))
 
 const CHECKS = [
   {
-    doc: "plugin.json",
+    doc: "plugins/qlane/plugin.json",
     schema: "schemas/agent-plugins-1.0.0-plugin.schema.json",
     draft: "2020",
     id: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   },
   {
-    doc: "mcp.json",
+    doc: "plugins/qlane/mcp.json",
     schema: "schemas/agent-plugins-1.0.0-mcp.schema.json",
     draft: "2020",
     id: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
@@ -61,7 +61,7 @@ const CHECKS = [
     // Its `mcpServers` accepts any string, object or array, so this check says
     // nothing about cursor-mcp.json, the file ours points at — and upstream
     // publishes no schema for that. test/manifests.test.mjs is what pins it.
-    doc: ".cursor-plugin/plugin.json",
+    doc: "plugins/qlane/.cursor-plugin/plugin.json",
     schema: "schemas/cursor-plugin-fae2c6e-plugin.schema.json",
     // Declared draft-07, like server.json's, although it keeps its definitions
     // under `$defs` rather than draft-07's `definitions`. Ajv's draft-07 build
