@@ -4,7 +4,10 @@
   "description": "AI QA that runs your app in a browser on every pull request: set up a test target, read what it found on a pull request, and plan tests for a local diff.",
   "author": { "name": "Qlane", "url": "https://qlane.ai" },
   "homepage": "https://qlane.ai",
+  "documentationUrl": "https://docs.qlane.ai",
+  "supportUrl": "https://qlane.ai/contact",
   "privacyPolicyUrl": "https://qlane.ai/privacy",
+  "termsOfServiceUrl": "https://qlane.ai/terms",
   "repository": "https://github.com/qlaneai/agent-plugin",
   "license": "MIT",
   "keywords": ["qa", "testing", "browser", "pull-request", "mcp"]

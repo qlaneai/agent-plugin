@@ -366,12 +366,26 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   assert.notEqual(MARKETPLACE_NAME, SERVER_NAME)
 })
 
-// The directory listing reads its privacy policy link and its icon from the Claude
-// manifest's folder; the developer portal warns on each when it is missing. Only the
-// Claude manifest carries privacyPolicyUrl: the portable schema is
+// Anthropic's directory reads these four links, and the icon below, for the plugin's
+// listing; Claude Code ignores them. The portal warns when privacyPolicyUrl is missing.
+// Only the Claude manifest carries them: the portable schema is
 // `additionalProperties: false`.
-test("the Claude manifest links Qlane's privacy policy", () => {
-  assert.equal(read(".claude-plugin/plugin.json").privacyPolicyUrl, "https://qlane.ai/privacy")
+test("the Claude manifest carries the directory listing's links", () => {
+  const manifest = read(".claude-plugin/plugin.json")
+  assert.deepEqual(
+    {
+      documentationUrl: manifest.documentationUrl,
+      supportUrl: manifest.supportUrl,
+      privacyPolicyUrl: manifest.privacyPolicyUrl,
+      termsOfServiceUrl: manifest.termsOfServiceUrl,
+    },
+    {
+      documentationUrl: "https://docs.qlane.ai",
+      supportUrl: "https://qlane.ai/contact",
+      privacyPolicyUrl: "https://qlane.ai/privacy",
+      termsOfServiceUrl: "https://qlane.ai/terms",
+    }
+  )
 })
 
 // The portal takes the icon only the FIRST time a submission is saved or submitted, so
