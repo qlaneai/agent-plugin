@@ -126,9 +126,10 @@ done by Claude, following the skills, in your session.
 - **Qlane's servers**, `mcp-eu.qlane.ai` or `mcp-us.qlane.ai`, whichever you connected. The
   skills send your repository's remote URL to find its Qlane project, and the identifiers of the
   projects, test targets, runs and pull requests they read. `/qlane:setup-env` sends a test
-  target's configuration when it creates or changes one. `/qlane:test-local-changes` sends your
-  local diff, with a short title and description, for Qlane to plan tests from. Variable values
-  and test-credential passwords never pass through the plugin: you enter them on a Qlane page.
+  target's configuration when it creates or changes one, including the repository's name and the
+  branch the test target uses. `/qlane:test-local-changes` sends your local diff, with a short
+  title and description, for Qlane to plan tests from. Variable values and test-credential
+  passwords never pass through the plugin: you enter them on a Qlane page.
 - **GitHub, through your own GitHub CLI.** If `gh` is installed, `/qlane:bugs` runs
   `gh pr view` to find the pull request for your current branch, with your own GitHub sign-in.
   Without it, the skill asks you for the pull request number.
@@ -136,6 +137,9 @@ done by Claude, following the skills, in your session.
   It sends nothing to them.
 - **Your own git remote.** `/qlane:setup-env` commits the files it prepared and pushes them to
   the branch your test target uses, with your own git access, and only after you say yes.
+- **Your local Docker.** `/qlane:setup-env` checks your Compose file with `docker compose config`
+  and may start your app's main service to confirm it boots. Docker can then pull images from the
+  registries your Compose file names.
 - **Your running app.** `/qlane:test-local-changes` drives your locally running app in a browser,
   at the address you give it, when your session has browser tooling.
 
