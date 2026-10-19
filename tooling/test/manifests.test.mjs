@@ -390,9 +390,13 @@ test("the Claude manifest carries the directory listing's links", () => {
 
 // The portal takes the icon only the FIRST time a submission is saved or submitted, so
 // a file it rejects cannot be fixed later by replacing it. Its rule: a square PNG,
-// 512 to 2048 px a side, under 2 MB. Width and height are read from the PNG header.
+// 512 to 2048 px a side, under 2 MB. The manifest names it explicitly — the documented
+// `icon` field — and the file checked is the one it names. Width and height are read
+// from the PNG header.
 test("the listing icon is a square PNG the directory accepts", () => {
-  const png = readFileSync(new URL("../../.claude-plugin/icon.png", import.meta.url))
+  const { icon } = read(".claude-plugin/plugin.json")
+  assert.equal(icon, "./.claude-plugin/icon.png")
+  const png = readFileSync(new URL(`../../${icon}`, import.meta.url))
   assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
   const width = png.readUInt32BE(16)
   const height = png.readUInt32BE(20)

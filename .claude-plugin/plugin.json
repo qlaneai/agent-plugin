@@ -8,6 +8,7 @@
   "supportUrl": "https://qlane.ai/contact",
   "privacyPolicyUrl": "https://qlane.ai/privacy",
   "termsOfServiceUrl": "https://qlane.ai/terms",
+  "icon": "./.claude-plugin/icon.png",
   "repository": "https://github.com/qlaneai/agent-plugin",
   "license": "MIT",
   "keywords": ["qa", "testing", "browser", "pull-request", "mcp"]
