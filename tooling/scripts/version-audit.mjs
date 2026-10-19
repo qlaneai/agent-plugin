@@ -50,7 +50,11 @@ const readJson = (p) => JSON.parse(readFileSync(new URL(p, ROOT), "utf8"))
 // manifest means adding it here — and if you forget, this script is what tells
 // you, because an undeclared file that declares a version at all is a finding
 // whatever its value.
-const DECLARED = ["plugin.json", ".claude-plugin/plugin.json", ".cursor-plugin/plugin.json"]
+const DECLARED = [
+  "plugins/qlane/plugin.json",
+  "plugins/qlane/.claude-plugin/plugin.json",
+  "plugins/qlane/.cursor-plugin/plugin.json",
+]
 
 // Tracked JSON that legitimately declares a version that is NOT the plugin's.
 // Per-file and explicit, so adding one is a decision rather than a default.
@@ -111,7 +115,7 @@ if (configErrors.length) {
   process.exit(1)
 }
 
-const source = "plugin.json"
+const source = "plugins/qlane/plugin.json"
 const version = readJson(source).version
 if (!version) {
   console.error(`✗ ${source} has no version`)

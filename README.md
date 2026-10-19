@@ -4,132 +4,23 @@ Installs [Qlane MCP](https://qlane.ai) into your AI coding editor, so your agent
 your Qlane projects, test targets and what Qlane found on your pull requests without leaving
 the editor.
 
-## Which region?
+**To install and use it, see [the plugin's README](plugins/qlane/README.md).**
 
-Qlane runs two independent regional stacks. The plugin registers **one server for each**, and
-you connect the one hosting your organization:
+## Repository layout
 
-| Server     | Endpoint                          |
-| ---------- | --------------------------------- |
-| `qlane-eu` | `https://mcp-eu.qlane.ai/api/mcp` |
-| `qlane-us` | `https://mcp-us.qlane.ai/api/mcp` |
-
-Authenticate that one and leave the other alone. An unconnected server contributes none of
-its own tools — your editor shows it with two sign-in helpers and nothing else — so it costs
-you nothing and is not an error state. If you connect the wrong one, every call returns
-a 403 naming the correct host — nothing is lost, and the fix is to connect the other server.
-
-Both are plain static URLs, so this works identically on every editor. Nothing is configured,
-substituted, or typed.
-
-## Install
-
-Qlane MCP requires a Qlane account. Your editor prompts you to sign in the first time it calls
-the server.
-
-### Claude Code
-
-```bash
-claude plugin marketplace add qlaneai/agent-plugin
-claude plugin install qlane@qlane-plugin
-```
-
-Then run `/mcp` and authenticate `qlane-eu` **or** `qlane-us` — whichever hosts your
-organization. There is no configuration step and nothing to type.
-
-### VS Code and GitHub Copilot
-
-Add this repo to `chat.plugins.marketplaces`:
-
-```json
-{
-  "chat.plugins.marketplaces": ["qlaneai/agent-plugin"]
-}
-```
-
-If nothing appears after adding it, check that `chat.plugins.enabled` is `true`.
-
-### Cursor
-
-In Cursor's **Import Marketplace** dialog, enter the full repository URL,
-`https://github.com/qlaneai/agent-plugin` — Cursor rejects the `qlaneai/agent-plugin` shorthand
-there. Then install `qlane` and authenticate the server for your region.
-
-Cursor also loads `.cursor-plugin/plugin.json`, which gives the same two servers Qlane's
-pre-registered Cursor client. So Cursor signs in as Qlane's verified Cursor client, and an
-organization's default client policy admits it.
-
-Connected a Qlane server with an earlier version of this plugin? After the update, Cursor
-should ask you to authenticate the server again; do, and it signs in as the verified client. If
-it keeps working without asking, sign out of the server in Cursor (or remove its stored
-authentication) and authenticate again.
-
-Cursor can also import this plugin from a Claude Code installation. An imported copy stays at
-the version Claude Code has installed, and only a version that carries
-`.cursor-plugin/plugin.json` signs in as the verified client, so update it there first:
-`claude plugin update qlane@qlane-plugin`.
-
-### Kiro
-
-Kiro reads the root `plugin.json` — the portable manifest — and loads this plugin without
-changes. Add the repository as a marketplace, install `qlane`, then authenticate the server for
-your region.
-
-### Codex
-
-Codex splits this across two places: you register the marketplace on the CLI, but you install
-from it in the ChatGPT desktop app. There is no CLI install command.
-
-```bash
-codex plugin marketplace add qlaneai/agent-plugin
-```
-
-Then open the **Plugins Directory** in the ChatGPT desktop app and install `qlane` from it.
-Codex prompts you to sign in the first time it calls the server.
-
-## Opening this repository in Claude Code
-
-You will see `qlane-eu` and `qlane-us` listed as **Pending approval**. That is expected and
-harmless: Claude Code reads a `.mcp.json` at a repository root as _project-scoped_ MCP
-configuration, so this repo's `.mcp.json` — the plugin's own manifest — is being read as if it
-were yours. Decline it, and install the plugin with the commands above instead.
-
-## Without the plugin
-
-Any MCP client can point at the endpoint directly. For Claude Code:
-
-```bash
-claude mcp add --transport http --scope user qlane https://mcp-eu.qlane.ai/api/mcp
-```
-
-Swap the host for `mcp-us.qlane.ai` if your organization is US-hosted.
-
-## What it can do
-
-Set up a test target for a repository, read your projects and test targets, and see what Qlane
-found when it tested your pull requests: each run's verdicts, the defects it saw and the
-evidence behind them. Three skills put that to work:
-
-- **`/qlane:setup-env`** takes a repository to a test target whose configuration check passed.
-  It finds the Qlane project the repository belongs to, or creates one, prepares the
-  repository from Qlane's published setup pages
-  ([docs.qlane.ai/connect](https://docs.qlane.ai/connect/overview)), creates the
-  test target, and has you enter
-  its variables and test credentials on a Qlane page — they never pass through the editor. It
-  asks before every change to your repository or to Qlane's configuration.
-- **`/qlane:bugs`** shows what Qlane found on a pull request or a recent run — defects, failing
-  and blocked cases, the steps to reproduce them and their evidence — then looks for the likely
-  cause in your repository and proposes a fix. It only reads from Qlane, and it changes your
-  code only when you say yes.
-- **`/qlane:test-local-changes`** asks Qlane to plan tests for a local diff before a pull
-  request exists, then exercises them against your running app.
+| Path                              | What it is                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `plugins/qlane/`                  | The plugin: everything that ships to an editor, and the folder Anthropic's directory reviews. |
+| `.claude-plugin/marketplace.json` | The marketplace Claude Code, Codex and VS Code install from. It points at `./plugins/qlane`.  |
+| `.cursor-plugin/marketplace.json` | Cursor's marketplace, pointing at the same folder.                                            |
+| `server.json`                     | The server's entry in the official MCP Registry, as `ai.qlane/qlane`.                         |
+| `glama.json`                      | Maintainer claim for the server's listing on Glama.                                           |
+| `tooling/`                        | Development tooling: formatting, linting, schema validation, tests. None of it ships.         |
 
 ## Development
 
-The development tooling lives in `tooling/`, its own npm package, and nothing in it ships as part
-of the plugin. It is kept out of the repository root on purpose: Claude Code installs the
-packages of any plugin whose root holds a `package.json` and a lockfile, so a root
-`package.json` would install these dev tools on every user's machine. A test enforces this.
+The development tooling lives in `tooling/`, its own npm package, outside the plugin folder, so
+none of it ships. A test pins the plugin folder to the files that do.
 
 ```bash
 npm ci --prefix tooling
@@ -149,11 +40,12 @@ Two checks need the Claude Code CLI and so are not part of `check`, which has to
 runner that does not have it:
 
 ```bash
-claude plugin validate --strict .   # manifest shapes; --strict makes warnings fatal
-claude plugin tag --dry-run         # what the next release tag would be
+claude plugin validate --strict .               # the marketplace; --strict makes warnings fatal
+claude plugin validate --strict plugins/qlane   # the plugin itself
+claude plugin tag --dry-run plugins/qlane       # what the next release tag would be
 ```
 
-The version lives in `plugin.json` only. The marketplace entry deliberately declares no
+The version lives in the plugin's manifests only. The marketplace entry deliberately declares no
 `version` of its own: `plugin.json` wins at install time, so a second copy could only ever
 agree or be silently ignored.
 
