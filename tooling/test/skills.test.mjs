@@ -262,9 +262,9 @@ test("setup-env makes signing up and setup the default, and stored accounts the 
 // declared connectors, and its security scan fails a version that contacts somewhere the
 // README does not disclose. So every outside service a skill reaches is named in the
 // plugin README's "What it sends, and where" section: each host a skill names, in its
-// granted commands or in its instructions, and GitHub whenever a skill may run the GitHub
-// CLI. Derived from the skills, so a skill that gains a new destination fails here until
-// the README says so.
+// granted commands or in its instructions, GitHub whenever a skill may run the GitHub CLI,
+// and GitLab whenever a skill may run the GitLab CLI. Derived from the skills, so a skill
+// that gains a new destination fails here until the README says so.
 test("the plugin README discloses every outside service a skill reaches", () => {
   const readme = readFileSync(new URL("../../plugins/qlane/README.md", import.meta.url), "utf8")
   const section = readme.split("## What it sends, and where")[1]?.split("\n## ")[0]
@@ -276,6 +276,9 @@ test("the plugin README discloses every outside service a skill reaches", () => 
   for (const host of hosts) assert.ok(section.includes(host), `README does not disclose ${host}`)
   if (/Bash\(gh /.test(granted)) {
     assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
+  }
+  if (/Bash\(glab /.test(granted)) {
+    assert.ok(section.includes("GitLab CLI"), "a skill may run glab; README must disclose GitLab")
   }
 })
 

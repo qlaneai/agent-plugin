@@ -102,7 +102,7 @@ Swap the host for `mcp-us.qlane.ai` if your organization is US-hosted.
 
 Set up a test target for a repository, read your projects and test targets, and see what Qlane
 found when it tested your pull requests: each run's verdicts, the defects it saw and the
-evidence behind them. Three skills put that to work:
+evidence behind them. Four skills put that to work:
 
 - **`/qlane:setup-env`** takes a repository to a test target whose configuration check passed.
   It finds the Qlane project the repository belongs to, or creates one, prepares the
@@ -115,6 +115,11 @@ evidence behind them. Three skills put that to work:
   and blocked cases, the steps to reproduce them and their evidence — then looks for the likely
   cause in your repository and proposes a fix. It only reads from Qlane, and it changes your
   code only when you say yes.
+- **`/qlane:test`** starts a Qlane test of the open pull request for your branch (a draft is
+  fine), waits for the verdict, then walks each issue it found to its evidence and checks it
+  against your code before proposing a fix. Starting a run uses Qlane credits and posts the
+  run's status on the pull request. The skill does not pre-approve starting a run, so in
+  Claude Code you are asked before each one. It changes your code only when you say yes.
 - **`/qlane:test-local-changes`** asks Qlane to plan tests for a local diff before a pull
   request exists, then exercises them against your running app.
 
@@ -128,11 +133,16 @@ done by Claude, following the skills, in your session.
   projects, test targets, runs and pull requests they read. `/qlane:setup-env` sends a test
   target's configuration when it creates or changes one, including the repository's name and the
   branch the test target uses. `/qlane:test-local-changes` sends your local diff, with a short
-  title and description, for Qlane to plan tests from. Variable values and test-credential
-  passwords never pass through the plugin: you enter them on a Qlane page.
-- **GitHub, through your own GitHub CLI.** If `gh` is installed, `/qlane:bugs` runs
-  `gh pr view` to find the pull request for your current branch, with your own GitHub sign-in.
-  Without it, the skill asks you for the pull request number.
+  title and description, for Qlane to plan tests from. `/qlane:test` sends the repository's
+  name, the pull request's number and the commit it expects to be tested. Qlane then tests that
+  pull request and posts the run's status and what it found on the pull request, where everyone
+  who can see the pull request can read it. Variable values and test-credential passwords never
+  pass through the plugin: you enter them on a Qlane page.
+- **GitHub or GitLab, through your own GitHub CLI or GitLab CLI.** If `gh` is installed,
+  `/qlane:bugs` runs `gh pr view` to find the pull request for your current branch, with your
+  own GitHub sign-in. Without it, the skill asks you for the pull request number. `/qlane:test`
+  runs `gh pr view`, or `glab mr view` for a GitLab remote, with your own sign-in, to find the
+  open pull request and its head commit. Without either, it asks you for the number.
 - **docs.qlane.ai.** `/qlane:setup-env` downloads up to three public setup pages with `curl`.
   It sends nothing to them.
 - **Your own git remote.** `/qlane:setup-env` commits the files it prepared and pushes them to
