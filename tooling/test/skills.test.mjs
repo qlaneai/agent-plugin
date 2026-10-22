@@ -335,7 +335,13 @@ test("test starts one run on the commit it means, waits it out, and re-tests rat
   // A skill's allowed-tools grant lasts only for the turn that loads it, and a client that moves
   // the sleep to the background ends that turn, so the polls after the first wait land in new
   // turns: the skill keeps polling there, and says once that later checks may ask.
-  assert.match(step3, /even if that comes as a new turn\./)
+  // A client may refuse a foreground sleep outright; with no wait running, the next call would
+  // come at once, so a refused sleep is re-run in the background rather than skipped.
+  assert.match(step3, /If your client refuses a foreground sleep, run it as a background command\./)
+  assert.match(
+    step3,
+    /When a background wait finishes, call `get_test_session` again, even if that comes as a new turn\./
+  )
   assert.match(
     step3,
     /Until then keep polling, however many checks that takes, up to the 40-minute limit below\./
