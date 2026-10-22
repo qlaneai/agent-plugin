@@ -332,6 +332,33 @@ test("test starts one run on the commit it means, waits it out, and re-tests rat
     step3,
     /Stop when the status is `COMPLETED`, `PARTIAL`, `FAILED`, `TIMED_OUT` or `CANCELLED`\./
   )
+  // A skill's allowed-tools grant lasts only for the turn that loads it, and a client that moves
+  // the sleep to the background ends that turn, so the polls after the first wait land in new
+  // turns: the skill keeps polling there, and says once that later checks may ask.
+  assert.match(step3, /even if that comes as a new turn\./)
+  assert.match(
+    step3,
+    /Until then keep polling, however many checks that takes, up to the 40-minute limit below\./
+  )
+  assert.match(
+    step3,
+    /Do not stop early because of the number of checks or how long this conversation has run\./
+  )
+  const notice = step3
+    .split("\n\n")
+    .find((p) => p.startsWith("Before the first wait, tell the developer once"))
+  assert.ok(
+    notice,
+    "step 3 tells the developer once, before the first wait, that later checks may ask"
+  )
+  assert.match(notice, /lasts only for the turn that started it/)
+  // The tools the notice says to allow are exactly the Qlane tools the skill grants, read from
+  // its own allowed-tools, so a grant added or dropped later fails here until the notice follows.
+  const granted = TOOLS.filter((t) => grantsOf(skill).has(grant("qlane-eu", t))).sort()
+  const named = TOOLS.filter((t) => notice.includes("`" + t + "`")).sort()
+  assert.deepEqual(named, granted)
+  assert.ok(!granted.includes("test_pull_request"))
+  assert.match(notice, /That does not allow starting a test\./)
   assert.match(step3, /after about 40 minutes, stop polling/)
   assert.match(step3, /Do not call the run, or the pull request's checks, "stuck" or "blocked"/)
   assert.match(step3, /if `cancelReason` is `superseded`, a newer run replaced it/)
