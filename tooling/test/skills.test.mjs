@@ -285,10 +285,9 @@ test("setup-env stops outside the application's repository, and offers a URL tar
     "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
   const NOT_VISIBLE =
     "\"This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again.\""
-  const GITLAB_MAINTAINER = '"…or the connection may need Maintainer access to it."'
   const URL_TRADE_OFF =
     "\"A URL test target tests one running deployment. Qlane won't read your code, so the QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment.\""
-  for (const copy of [NOT_A_REPOSITORY, NOT_VISIBLE, GITLAB_MAINTAINER, URL_TRADE_OFF]) {
+  for (const copy of [NOT_A_REPOSITORY, NOT_VISIBLE, URL_TRADE_OFF]) {
     assert.ok(step1.includes(copy), `step 1 says, verbatim: ${copy}`)
   }
   // (1) No remote: the repository path stops.
@@ -298,7 +297,10 @@ test("setup-env stops outside the application's repository, and offers a URL tar
   assert.match(step1, /page while `hasMore`/)
   assert.match(step1, /read the whole list and this repository is not in it/i)
   assert.match(step1, /never hosts/)
-  assert.match(step1, /`gitlab`/)
+  // GitHub only: GitLab's project search may not match a repository by its path, so an
+  // absent entry there proves nothing, and the check carries on instead of saying "not visible".
+  assert.match(step1, /`source\.sourceControl` is not `github`\*\* — carry on/)
+  assert.doesNotMatch(step1, /Maintainer access/)
   // (3) The check never blocks: a refusal or error carries on, and a null list still
   // offers the URL target, both taking precedence over "When something goes wrong".
   assert.match(step1, /refused, for any reason, or errors/)
