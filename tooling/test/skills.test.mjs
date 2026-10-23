@@ -269,3 +269,48 @@ test("the plugin README discloses every outside service a skill reaches", () => 
     assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
   }
 })
+
+// Run outside the application's repository, the skill has nothing to inspect and a URL
+// target is the only kind it can propose, so the developer ends up with no code plan and
+// no pull-request testing without having chosen that (qlaneai/poc#5145). Step 1 stops the
+// repository path in two cases and must never block in a third, each pinned by its own
+// words: no remote, a repository the source connection can't see, and a check that
+// cannot run.
+test("setup-env stops outside the application's repository, and offers a URL target as a choice", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step1 = stepOf(setup.body, 1)
+  // The approved copy, word for word: each is what the developer reads.
+  const NOT_A_REPOSITORY =
+    "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
+  const NOT_VISIBLE =
+    "\"This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again.\""
+  const URL_TRADE_OFF =
+    "\"A URL test target tests one running deployment. Qlane won't read your code, so the QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment.\""
+  for (const copy of [NOT_A_REPOSITORY, NOT_VISIBLE, URL_TRADE_OFF]) {
+    assert.ok(step1.includes(copy), `step 1 says, verbatim: ${copy}`)
+  }
+  // (1) No remote: the repository path stops.
+  assert.match(step1, /not a git repository, or it has no `origin`/)
+  // (2) Not visible: decided only after the whole list was read, by name, never by host.
+  assert.match(step1, /list_source_repositories/)
+  assert.match(step1, /page while `hasMore`/)
+  assert.match(step1, /read the whole list and this repository is not in it/i)
+  assert.match(step1, /never hosts/)
+  // GitHub only: GitLab's project search may not match a repository by its path, so an
+  // absent entry there proves nothing, and the check carries on instead of saying "not visible".
+  assert.match(step1, /`source\.sourceControl` is not `github`\*\* — carry on/)
+  assert.doesNotMatch(step1, /Maintainer access/)
+  // (3) The check never blocks: a refusal or error carries on, and a null list still
+  // offers the URL target, both taking precedence over "When something goes wrong".
+  assert.match(step1, /refused, for any reason, or errors/)
+  assert.match(step1, /never stops setup on its own/)
+  assert.match(
+    step1,
+    /`repositories` is null\*\* — relay `source\.message`, then offer a URL test target/
+  )
+  assert.match(step1, /take precedence over "When something goes wrong"/)
+  // The alternative is created only on a choice, and no credits confirmation rides on it.
+  assert.match(step1, /only if they choose it/)
+  assert.doesNotMatch(step1, /credit/i)
+})
