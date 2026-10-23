@@ -269,3 +269,49 @@ test("the plugin README discloses every outside service a skill reaches", () => 
     assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
   }
 })
+
+// Run outside the application's repository, the skill has nothing to inspect and a URL
+// target is the only kind it can propose, so the developer ends up with no code plan and
+// no pull-request testing without having chosen that (qlaneai/poc#5145). Step 1 stops the
+// repository path in two cases and must never block in a third, each pinned by its own
+// words: no remote, a repository the source connection can't see, and a check that
+// cannot run.
+test("setup-env stops outside the application's repository, and offers a URL target as a choice", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step1 = stepOf(setup.body, 1)
+  // (1) Not a repository, or no origin.
+  assert.match(
+    step1,
+    /If that fails — the folder is not a git repository, or it has no `origin` — stop/
+  )
+  assert.match(
+    step1,
+    /"This folder isn't the application's repository, so I can't set up a code-based test target from here\. Open your editor in the application's repository folder and run \/qlane:setup-env again\."/
+  )
+  // (2) A repository the source connection cannot see, said only after a full read.
+  assert.match(
+    step1,
+    /Call `list_source_repositories` with the project id and the repository's name \(the last part of `owner\/name`\) as `query`/
+  )
+  assert.match(step1, /page while `hasMore`/)
+  assert.match(step1, /You read the whole list and this repository is not in it/)
+  assert.match(
+    step1,
+    /"This repository isn't one this project's source connection can see\. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run \/qlane:setup-env again\."/
+  )
+  assert.match(step1, /"…or the connection may need Maintainer access to it\."/)
+  // (3) A refused or failed check never blocks, whatever the reason: the repository kinds check again in step 3.
+  assert.match(
+    step1,
+    /refused, for any reason, or errors\*\* — say nothing about it and carry on; this check never stops setup on its own/
+  )
+  // The alternative is offered with what it gives up, and created only on a choice.
+  assert.match(
+    step1,
+    /"A URL test target tests one running deployment\. Qlane won't read your code, so the QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment\."/
+  )
+  assert.match(step1, /Create one only if they choose it/)
+  // A configuration choice, not a spend: no credits confirmation rides on it.
+  assert.doesNotMatch(step1, /credit/i)
+})

@@ -48,6 +48,8 @@ Every tool named below exists on both servers. Call it on the one you settled he
 git remote get-url origin
 ```
 
+If that fails — the folder is not a git repository, or it has no `origin` — stop the repository path and say: "This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again." Then offer a URL test target, as in "Testing a deployed URL instead" below. If they choose it, settle the project with `list_projects` as in **None** below.
+
 A Qlane project is one **application**, and it can span several repositories. So the question is not "does this repository have a project" but "which application is it part of".
 
 Call `resolve_project` with the repository identity. It returns 0, 1, or several matches and **never picks one for you**. Each match is one test target that names this repository, so one project can appear more than once.
@@ -56,6 +58,14 @@ Call `resolve_project` with the repository identity. It returns 0, 1, or several
 - **Several projects** — this repository belongs to more than one. Show their names and ask which one to set up.
 - **None** — this does **not** prove the repository has no project. `resolve_project` finds a project only through a test target that names the repository, so a project with no test target yet, or whose targets do not name this repository, is not found. Call `list_projects` and ask the user which listed project, if any, this repository belongs to. `list_projects` returns at most 100 projects with no way to fetch more; if it returned that many, say the list may be incomplete. Do not guess. A new organization starts with a project created for it automatically; one that has never run a test may be the one to use, so ask rather than assume either way.
 - **Only when the user says the repository belongs to none of them**, offer to create a project. Ask for its name, read the provider (GitHub or GitLab) from the remote, and call `create_project` with them as `name` and `sourceControl`. Read back what it reports: the link it made to the provider, and whether the source is usable now.
+
+Once the project is settled, and if the remote step succeeded, check that the project's source connection can see this repository. Read its host and `owner/name` from the remote, in either its SSH or its HTTPS form, without a trailing `.git`; on GitLab, `owner` can include subgroups (`group/sub`). Call `list_source_repositories` with the project id and the repository's name (the last part of `owner/name`) as `query`, as step 3 does, and page while `hasMore`. Look for an entry whose `fullName` matches `owner/name` exactly, ignoring case, with the remote's host matching `source.host`.
+
+- **`repositories` is null** — relay `source.message` and stop.
+- **The call is refused, for any reason, or errors** — say nothing about it and carry on; this check never stops setup on its own. The repository kinds check again in step 3, and a refusal that applies to later steps too is relayed there.
+- **You read the whole list and this repository is not in it** — say: "This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again." When `source.sourceControl` is `gitlab`, add: "…or the connection may need Maintainer access to it." Then offer a URL test target, as below.
+
+**Testing a deployed URL instead.** Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it. Say: "A URL test target tests one running deployment. Qlane won't read your code, so the QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment." Create one only if they choose it, with kind `URL` from step 2.
 
 With a project, call `get_project` and `list_environments`. For each existing test target, `get_environment` shows its configuration and `pullRequestRepoFullNames`, the repositories whose pull requests can reach it.
 
