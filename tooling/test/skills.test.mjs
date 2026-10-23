@@ -303,7 +303,10 @@ test("setup-env stops outside the application's repository, and offers a URL tar
   // offers the URL target, both taking precedence over "When something goes wrong".
   assert.match(step1, /refused, for any reason, or errors/)
   assert.match(step1, /never stops setup on its own/)
-  assert.match(step1, /`repositories` is null\*\* — relay `source\.message`, then offer a URL test target/)
+  assert.match(
+    step1,
+    /`repositories` is null\*\* — relay `source\.message`, then offer a URL test target/
+  )
   assert.match(step1, /take precedence over "When something goes wrong"/)
   // The alternative is created only on a choice, and no credits confirmation rides on it.
   assert.match(step1, /only if they choose it/)
