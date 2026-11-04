@@ -64,7 +64,7 @@ const NAMED_NOT_GRANTED = {
       "writes: the editor's prompt confirms it, after the user said no project is theirs",
     create_environment: "writes: the editor's prompt confirms each test target created",
     update_environment:
-      "writes: switching a trigger on changes which pull requests start a test run",
+      "writes: switching a trigger on changes which pull requests start a test run, and linking a repository can register it on a GitLab connection",
   },
   bugs: {
     create_test_plan: "forbidden: the skill is read-only",
@@ -247,6 +247,49 @@ test("setup-env makes signing up and setup the default, and stored accounts the 
   assert.match(step9, /no tool here reads it: ask the developer to confirm it is on/)
   assert.match(step9, /On a `URL` target nothing is set up before testing/)
   assert.match(step9, /each account the tests sign in with needs a test credential through step 6/)
+})
+
+// A URL target runs no code of its own, so chat reads the application's code only through
+// the repositories linked to it, at the branch the deployed site is built from. A skill that
+// never asks leaves chat reading nothing, or reading each repository's default branch while
+// the deployment runs another. Pinned in step 5, where a URL target is created or finished,
+// and in step 8, where the skill lists what update_environment can change.
+test("setup-env asks a URL target's linked repositories and deployed-from branch", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step5 = stepOf(setup.body, 5)
+  assert.match(step5, /put the answers in `target` as `agentLinkedRepos` and `deployedFromBranch`/)
+  assert.match(step5, /Which repositories, as owner\/name, Qlane's agent may read the code of/)
+  assert.match(step5, /Which branch the deployed site is built from/)
+  assert.match(step5, /leaving it empty reads each repository's default branch/)
+  assert.match(step5, /one that is not refuses the whole call, and no test target is created/)
+  assert.match(step5, /On a GitLab connection, repositories checked before a refusal may/)
+  assert.match(step5, /A null `repositories` stops only the linking/)
+  assert.match(step5, /If there is no owner\/name to link/)
+  // The pre-flight refuses the whole create, so an unlisted repository is the developer's
+  // call before the create is sent, never a refusal found afterwards.
+  assert.match(step5, /fetch the next `page` while `hasMore` is true/)
+  assert.match(step5, /ask the developer whether to leave it out, and never send a create/)
+  assert.match(step5, /On GitLab an absent entry proves nothing/)
+  // A reading, not a read: and a check repeated by creating again makes a second target.
+  assert.match(step5, /It is a reading of what chat would read now, not a read that happened/)
+  assert.match(step5, /To check again, never create the test target again/)
+  // Sending the list again would check, and on GitLab register, every repository again.
+  assert.match(step5, /set the same `deployedFromBranch`, and only that field/)
+  assert.match(step5, /one the connection can't reach refuses the whole update/)
+  assert.match(step5, /If it names `environment`, call `get_environment`/)
+  assert.match(
+    step5,
+    /call `update_environment` with the `environmentId` and its `linkedRepositories`/
+  )
+  assert.match(step5, /`deployedFromBranch` sets the branch, and `null` clears it/)
+  const step8 = stepOf(setup.body, 8)
+  assert.match(
+    step8,
+    /`linkedRepositories`: `agentLinkedRepos` and, on a `URL` target only, `deployedFromBranch`/
+  )
+  assert.match(step8, /names `deployedFromBranch` on any other kind is refused whole/)
+  assert.match(step8, /no configuration check reads linked repositories/)
 })
 
 // Anthropic's directory asks whether any skill sends data to a service other than the

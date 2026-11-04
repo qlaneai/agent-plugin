@@ -127,9 +127,10 @@ done by Claude, following the skills, in your session.
   skills send your repository's remote URL to find its Qlane project, and the identifiers of the
   projects, test targets, runs and pull requests they read. `/qlane:setup-env` sends a test
   target's configuration when it creates or changes one, including the repository's name and the
-  branch the test target uses. `/qlane:test-local-changes` sends your local diff, with a short
-  title and description, for Qlane to plan tests from. Variable values and test-credential
-  passwords never pass through the plugin: you enter them on a Qlane page.
+  branch the test target uses, or, for a URL target, the names of the repositories you link and
+  the branch the deployed site is built from. `/qlane:test-local-changes` sends your local
+  diff, with a short title and description, for Qlane to plan tests from. Variable values and
+  test-credential passwords never pass through the plugin: you enter them on a Qlane page.
 - **GitHub, through your own GitHub CLI.** If `gh` is installed, `/qlane:bugs` runs
   `gh pr view` to find the pull request for your current branch, with your own GitHub sign-in.
   Without it, the skill asks you for the pull request number.
