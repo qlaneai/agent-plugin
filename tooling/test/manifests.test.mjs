@@ -16,14 +16,17 @@ const CLAUDE_MANIFEST = `${PLUGIN_DIR}.claude-plugin/plugin.json`
 const CLAUDE_MCP = `${PLUGIN_DIR}.mcp.json`
 const MARKETPLACE = ".claude-plugin/marketplace.json"
 const CURSOR_MARKETPLACE = ".cursor-plugin/marketplace.json"
-const ENDPOINT_PATH = "/api/mcp"
-const EU_HOST = "mcp-eu.qlane.ai"
-const US_HOST = "mcp-us.qlane.ai"
+// The one URL every manifest registers. It serves every data region: each request is
+// routed to the region that hosts the signed-in organization. A literal in every file —
+// no surface but the Claude Code CLI can substitute anything into a `url`.
+const ENDPOINT_URL = "https://mcp.qlane.ai/mcp"
+// The regional endpoints the plugin registered before it had one URL. They keep working
+// for a client pointed at one directly, but no manifest here names one any more.
+const REGIONAL_HOSTS = ["mcp-eu.qlane.ai", "mcp-us.qlane.ai"]
 const SERVER_NAME = "qlane"
-// One server per data region, both static. NOT one server whose host varies: no
-// surface but the Claude Code CLI can substitute anything into a `url`.
-const EU_SERVER = "qlane-eu"
-const US_SERVER = "qlane-us"
+// The plugin's one server. Its name is the plugin's own, and it is the name Qlane's
+// dashboard tells a plugin user to authenticate, so the two move together or not at all.
+const MCP_SERVER = "qlane"
 // Deliberately NOT equal to SERVER_NAME — see the marketplace-name test at the
 // bottom for why, before "fixing" them into agreement.
 const MARKETPLACE_NAME = "qlane-plugin"
@@ -36,8 +39,9 @@ const REMOTE_TYPE = "streamable-http"
 const CURSOR_MANIFEST = `${PLUGIN_DIR}.cursor-plugin/plugin.json`
 const SIDECAR = `${PLUGIN_DIR}cursor-mcp.json`
 // Qlane's pre-registered OAuth client for Cursor. One production sign-in environment
-// serves both regions, so one id serves both servers. Public by design: it identifies a
-// PKCE client with no secret, so publishing it grants nothing by itself.
+// serves every region, so the id that served both regional servers serves the one
+// server. Public by design: it identifies a PKCE client with no secret, so publishing
+// it grants nothing by itself.
 const CURSOR_CLIENT_ID = "client_01M3PNDD11GZ6DYW6MMNXDZ1S0"
 
 // Compared as {type, url} pairs, never urls alone: a remote silently switched to
@@ -46,47 +50,49 @@ const CURSOR_CLIENT_ID = "client_01M3PNDD11GZ6DYW6MMNXDZ1S0"
 const endpoints = (o) =>
   o.remotes.map(({ type, url }) => ({ type, url })).sort((a, b) => (a.url < b.url ? -1 : 1))
 
-test("both manifests register the same two regional servers", () => {
+test("both manifests register one server, `qlane`", () => {
   // deepEqual against the literal key list also rules out an EMPTY mcpServers object,
   // which is schema-valid and installs nothing. A separate length check would add no
   // coverage — any key list that fails one fails the other.
   //
-  // It also pins the COUNT at two. Dropping the US server is the failure that costs a
-  // whole region its install path while every other assertion here still passes.
+  // It also pins the COUNT at one. A regional server left behind beside the new one
+  // still installs and still connects, so nothing else would notice it: the user just
+  // sees two Qlane servers, and every tool twice once both are authenticated.
   for (const f of [PORTABLE_MCP, CLAUDE_MCP]) {
-    assert.deepEqual(Object.keys(read(f).mcpServers), [EU_SERVER, US_SERVER], f)
+    assert.deepEqual(Object.keys(read(f).mcpServers), [MCP_SERVER], f)
   }
 })
 
 test("portable mcp.json uses the SPEC transport value, not Claude Code's", () => {
-  // Claude Code silently drops "streamable-http"; the spec rejects "http". Asserted on
-  // EVERY server: a second entry added later is exactly where the wrong spelling lands,
-  // and it fails as a missing server rather than an error.
-  for (const s of [EU_SERVER, US_SERVER]) {
-    assert.equal(read(PORTABLE_MCP).mcpServers[s].type, "streamable-http", s)
+  // Claude Code silently drops "streamable-http"; the spec rejects "http".
+  assert.equal(read(PORTABLE_MCP).mcpServers[MCP_SERVER]?.type, "streamable-http")
+})
+
+test("the server URL is the single endpoint, in BOTH dialects", () => {
+  // A literal string, so every client gets a working URL without expanding anything.
+  // Asserted per dialect because the two files are edited independently and only this
+  // compares them.
+  for (const f of [PORTABLE_MCP, CLAUDE_MCP]) {
+    assert.equal(read(f).mcpServers[MCP_SERVER]?.url, ENDPOINT_URL, f)
   }
 })
 
-test("every server URL is the real regional endpoint, in BOTH dialects", () => {
-  // The whole point of the two-server shape: these are literal strings, so every
-  // client gets a working URL without expanding anything. Asserted per dialect
-  // because the two files are edited independently and only this compares them.
-  const expected = {
-    [EU_SERVER]: `https://${EU_HOST}${ENDPOINT_PATH}`,
-    [US_SERVER]: `https://${US_HOST}${ENDPOINT_PATH}`,
-  }
-  for (const f of [PORTABLE_MCP, CLAUDE_MCP]) {
-    for (const [server, url] of Object.entries(expected)) {
-      assert.equal(read(f).mcpServers[server].url, url, `${f} -> ${server}`)
+// A regional URL left in a manifest or in the Registry entry is a second way in that
+// the README no longer describes. Scanned as raw TEXT over whole files, for the reason
+// the placeholder test below gives: the same leftover in a field nobody thought to
+// compare — a `_meta` block, a header — is the same mistake.
+test("no server config and no Registry entry names a regional endpoint", () => {
+  for (const f of [PORTABLE_MCP, CLAUDE_MCP, SIDECAR, "server.json"]) {
+    const raw = readFileSync(new URL(f, REPO), "utf8")
+    for (const host of REGIONAL_HOSTS) {
+      assert.ok(!raw.includes(host), `${f} must not name ${host}`)
     }
   }
 })
 
 test("Claude Code .mcp.json uses http, its own transport spelling", () => {
-  for (const s of [EU_SERVER, US_SERVER]) {
-    // An entry with `url` and no `type` is read as a stdio server and skipped.
-    assert.equal(read(CLAUDE_MCP).mcpServers[s].type, "http", s)
-  }
+  // An entry with `url` and no `type` is read as a stdio server and skipped.
+  assert.equal(read(CLAUDE_MCP).mcpServers[MCP_SERVER]?.type, "http")
 })
 
 // ── Cursor signs in as Qlane's verified client ───────────────────────────────
@@ -122,40 +128,35 @@ test("cursor-mcp.json registers exactly the portable manifest's server names", (
   // connects; it just signs in unverified again, and nothing else here would notice.
   //
   // Sorted, because entry order means nothing to Cursor. The portable names themselves
-  // are pinned to the two regional literals by the first test in this file.
+  // are pinned to the one literal by the first test in this file.
   const names = (f) => Object.keys(read(f).mcpServers).sort()
   assert.deepEqual(names(SIDECAR), names(PORTABLE_MCP))
 })
 
-test("every cursor-mcp.json server has the portable manifest's URL for that name", () => {
+test("the cursor-mcp.json server has the portable manifest's URL", () => {
   // Same name is what makes Cursor keep the sidecar entry; this is what makes the entry it
-  // keeps the right region. Cursor prefers the sidecar even when the URLs differ, so a URL
+  // keeps the right endpoint. Cursor prefers the sidecar even when the URLs differ, so a URL
   // drifted here would silently replace the portable manifest's correct one.
-  const portable = read(PORTABLE_MCP).mcpServers
-  const sidecar = read(SIDECAR).mcpServers
-  for (const s of [EU_SERVER, US_SERVER]) {
-    assert.equal(sidecar[s]?.url, portable[s].url, s)
-  }
+  const portable = read(PORTABLE_MCP).mcpServers[MCP_SERVER]?.url
+  // Checked first, or two missing servers would agree with each other.
+  assert.equal(typeof portable, "string", `${PORTABLE_MCP} must register ${MCP_SERVER}`)
+  assert.equal(read(SIDECAR).mcpServers[MCP_SERVER]?.url, portable)
 })
 
-test("every cursor-mcp.json server signs in as Qlane's Cursor client, with no secret", () => {
-  for (const s of [EU_SERVER, US_SERVER]) {
-    const auth = read(SIDECAR).mcpServers[s]?.auth
-    assert.equal(auth?.CLIENT_ID, CURSOR_CLIENT_ID, `${s} auth.CLIENT_ID`)
-    // A public PKCE client has no secret to ship, and a CLIENT_SECRET key in a public
-    // repository reads as a leaked credential whatever it holds.
-    assert.ok(!("CLIENT_SECRET" in auth), `${s} must carry no CLIENT_SECRET`)
-  }
+test("the cursor-mcp.json server signs in as Qlane's Cursor client, with no secret", () => {
+  const auth = read(SIDECAR).mcpServers[MCP_SERVER]?.auth
+  assert.equal(auth?.CLIENT_ID, CURSOR_CLIENT_ID, "auth.CLIENT_ID")
+  // A public PKCE client has no secret to ship, and a CLIENT_SECRET key in a public
+  // repository reads as a leaked credential whatever it holds.
+  assert.ok(!("CLIENT_SECRET" in auth), "the server must carry no CLIENT_SECRET")
 })
 
-test("every cursor-mcp.json server keeps the shape that was measured", () => {
+test("the cursor-mcp.json server keeps the shape that was measured", () => {
   // `url` and `auth`, nothing else — in particular no `type`. That is the one shape the
   // live install measured. Cursor's own plugins write `auth` both beside `"type": "http"`
   // and with no `type` at all, so adding one is probably harmless — but it is unmeasured
   // HERE, and "tidying" the sidecar into another dialect should cost a re-measure first.
-  for (const s of [EU_SERVER, US_SERVER]) {
-    assert.deepEqual(Object.keys(read(SIDECAR).mcpServers[s] ?? {}).sort(), ["auth", "url"], s)
-  }
+  assert.deepEqual(Object.keys(read(SIDECAR).mcpServers[MCP_SERVER] ?? {}).sort(), ["auth", "url"])
 })
 
 test("the portable mcp.json carries no auth on any server", () => {
@@ -168,7 +169,7 @@ test("the portable mcp.json carries no auth on any server", () => {
   }
 })
 
-// THE regression guard for the two-server design. A placeholder in a `url` resolves in
+// THE regression guard for static URLs. A placeholder in a `url` resolves in
 // exactly one place — the Claude Code CLI — and silently fails everywhere else: the
 // portable Agent Plugins schema is `additionalProperties: false` and cannot even
 // express `userConfig`, and claude.ai treats an MCP `url` as an opaque connector
@@ -208,7 +209,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read(PORTABLE_MANIFEST).version, "0.6.6")
+  assert.equal(read(PORTABLE_MANIFEST).version, "0.7.0")
   for (const f of [CLAUDE_MANIFEST, CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read(PORTABLE_MANIFEST).name, `${f} name`)
     assert.equal(read(f).version, read(PORTABLE_MANIFEST).version, `${f} version`)
@@ -239,15 +240,11 @@ test("server.json makes the server's claim, and every plugin manifest the plugin
   assert.equal(read("server.json").description, SERVER_CLAIM)
   assert.equal(read(CLAUDE_MANIFEST).description, PLUGIN_CLAIM)
   assert.equal(read(MARKETPLACE).plugins[0].description, PLUGIN_CLAIM)
-  // The portable manifest appends a region sentence — it has no userConfig to carry
-  // that information — so it extends the claim rather than equalling it.
-  assert.ok(
-    read(PORTABLE_MANIFEST).description.startsWith(PLUGIN_CLAIM),
-    "portable plugin.json must open with the plugin's claim"
-  )
-  // Cursor's manifest ships the same two servers with no userConfig either, so it
-  // carries the portable description, region sentence and all.
-  assert.equal(read(CURSOR_MANIFEST).description, read(PORTABLE_MANIFEST).description)
+  // The portable and Cursor manifests used to append a sentence about choosing a
+  // regional server. There is one server now and nothing to choose, so each equals the
+  // claim — a sentence left behind would tell every reader to pick a region.
+  assert.equal(read(PORTABLE_MANIFEST).description, PLUGIN_CLAIM)
+  assert.equal(read(CURSOR_MANIFEST).description, PLUGIN_CLAIM)
 })
 
 // The two below close gaps the JSON Schemas structurally cannot: the upstream
@@ -258,10 +255,11 @@ test("the plugin is named exactly `qlane`", () => {
   // Matches MCP_SERVER_NAME in the main Qlane repo, so a dashboard install and a
   // plugin install are recognisably the same product.
   //
-  // It no longer makes them ONE server, and nothing can: a plugin's servers are keyed
+  // The name does not make them ONE server: a plugin's servers are keyed
   // `plugin:<plugin>:<server>`, so a dashboard install (`qlane`) and this plugin
-  // (`plugin:qlane:qlane-eu`) are distinct entries whatever they are called. Users do
-  // one or the other; the dashboard already emits a region-correct install of its own.
+  // (`plugin:qlane:qlane`) are distinct entries. Claude Code shows the two as one only
+  // while their URLs are the same; an earlier manual install at a regional URL is a
+  // second server, which is why the README says how to remove it.
   assert.equal(read(PORTABLE_MANIFEST).name, SERVER_NAME)
 })
 
@@ -350,31 +348,29 @@ test("the plugin README is long enough to be the directory listing", () => {
   assert.ok(words >= 40, `${PLUGIN_DIR}README.md has ${words} words outside code blocks`)
 })
 
-test("server.json registers BOTH regions, as streamable-http", () => {
-  // Pinned to the two-element literal, not merely "contains EU": every other
-  // assertion here is satisfied by the EU remote alone, so dropping the US
-  // remote from server.json passed the entire offline gate before this test
-  // existed — and the Registry entry is the only place the US endpoint is
-  // published to clients that do not read our dashboard.
-  assert.deepEqual(endpoints(read("server.json")), [
-    { type: REMOTE_TYPE, url: `https://${EU_HOST}${ENDPOINT_PATH}` },
-    { type: REMOTE_TYPE, url: `https://${US_HOST}${ENDPOINT_PATH}` },
-  ])
+test("server.json registers the single URL, as streamable-http", () => {
+  // Pinned to the one-element literal, not merely "contains the URL": a regional
+  // remote left beside it would publish a second endpoint to every client that reads
+  // the Registry and never sees our dashboard.
+  assert.deepEqual(endpoints(read("server.json")), [{ type: REMOTE_TYPE, url: ENDPOINT_URL }])
 })
 
-test("the portable manifest points at one of the registered remotes", () => {
+test("server.json carries the version its single remote was published under", () => {
+  // The Registry never lets a published version change, so the entry whose remotes
+  // changed cannot go out under the version the two regional remotes were published
+  // as. This is the server's version, not the plugin's: scripts/version-audit.mjs says
+  // why the two differ.
+  assert.equal(read("server.json").version, "1.1.0")
+})
+
+test("the portable manifest points at the registered remote", () => {
   // Local half of the drift check, so it runs on every PR rather than only on
   // drift.yml's schedule: the network test pins server.json to production, and
-  // this pins mcp.json to server.json. A regional host renamed in one file and
-  // not the other fails here within the same commit.
+  // this pins mcp.json to server.json. An endpoint changed in one file and not the
+  // other fails here within the same commit.
   const remotes = read("server.json").remotes.map((r) => r.url)
-  // EVERY server, not just one: the published Registry entry is where a client that
-  // never sees our dashboard learns the US endpoint exists, so a US host renamed in
-  // mcp.json and not in server.json has to fail here, in the same commit.
-  for (const s of [EU_SERVER, US_SERVER]) {
-    const url = read(PORTABLE_MCP).mcpServers[s].url
-    assert.ok(remotes.includes(url), `${PORTABLE_MCP} ${s} url ${url} is not a server.json remote`)
-  }
+  const url = read(PORTABLE_MCP).mcpServers[MCP_SERVER]?.url
+  assert.ok(remotes.includes(url), `${PORTABLE_MCP} url ${url} is not a server.json remote`)
 })
 
 test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs", () => {

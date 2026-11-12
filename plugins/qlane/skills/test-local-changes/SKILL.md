@@ -3,7 +3,7 @@ name: test-local-changes
 description: Test uncommitted local changes before opening a pull request. Asks Qlane to plan what should be tested for the current diff, then exercises those cases against the running app — driving the browser, reading logs and checking data where available — and reports suspected bugs for the developer to triage. Use when the user has local edits and asks to test them, check for regressions, verify a change before pushing, or find what their change might have broken — including plain requests such as "test my changes", "test this before I push" or "did I break anything".
 license: MIT
 compatibility: Requires git and a Qlane account. Browser cases need browser-automation tooling in the session; without it those cases are reported as not checked rather than skipped silently.
-allowed-tools: mcp__plugin_qlane_qlane-eu__resolve_project mcp__plugin_qlane_qlane-eu__list_projects mcp__plugin_qlane_qlane-eu__create_test_plan mcp__plugin_qlane_qlane-eu__get_test_plan mcp__plugin_qlane_qlane-us__resolve_project mcp__plugin_qlane_qlane-us__list_projects mcp__plugin_qlane_qlane-us__create_test_plan mcp__plugin_qlane_qlane-us__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
+allowed-tools: mcp__plugin_qlane_qlane__resolve_project mcp__plugin_qlane_qlane__list_projects mcp__plugin_qlane_qlane__create_test_plan mcp__plugin_qlane_qlane__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
 ---
 
 # Test local changes
@@ -18,23 +18,28 @@ This matters because you are judging your own work. You performed the actions, t
 
 ---
 
-## Step 0 — There are two servers; use the connected one
+## Step 0 — Check that Qlane is connected
 
-The plugin registers one server per data region, `qlane-eu` and `qlane-us`, with identical
-tools. Only the one hosting the user's organization will authenticate — the other returns 403
-to everything, and re-authenticating cannot fix that.
+The plugin registers one server, `qlane`. It serves every Qlane region: each call goes to the
+region that hosts the organization the user signed in to.
 
-So use whichever server is connected. **You can tell by its tools**: a connected server exposes
-`resolve_project`, `list_projects`, `create_test_plan` and the rest, while an unconnected one
-exposes only `authenticate` and `complete_authentication` — two sign-in helpers the client
-adds. A server offering nothing but those is not connected, whatever its name suggests.
+**You can tell whether it is connected by its tools.** A connected server exposes
+`resolve_project`, `list_projects`, `create_test_plan` and the rest. An unconnected one exposes
+only `authenticate` and `complete_authentication`, two sign-in helpers the client adds. A
+server offering nothing but those is not connected.
 
-If **both** are connected, ask which organization they mean rather than picking; the two are
-different tenants and the answer is not inferable. If **neither** is, say so and point them at
-the region their organization is hosted in — connecting is a one-time step you cannot perform
-for them.
+- **Not connected.** Tell the user to run `/mcp` and authenticate `qlane`, and wait until they
+  have. In an editor without `/mcp`, they authenticate `qlane` in its MCP settings. It is a
+  one-time step you cannot perform for them. Everyone who updates from an earlier version of
+  the plugin starts here once, because the server's name changed.
+- **Which organization.** The server is connected to one organization at a time: the one the
+  user chose when they signed in. If the user says they belong to more than one, or a project
+  they expect is missing, say which organization is connected before going on: call
+  `list_projects` and show its project names, so they can recognise it. If it is the wrong
+  one, the user switches: they sign out of qlane.ai, then authenticate `qlane` again and
+  choose the other organization.
 
-Every tool named below exists on both servers. Call it on the one you settled here.
+Every tool named below is called on `qlane`.
 
 ## Step 1 — Find the project
 
@@ -123,6 +128,6 @@ End there. Do not summarise into a judgement.
 ## When something goes wrong
 
 - **A payment or subscription error** — read the message. Most say retrying will not help; when they do, relay the message and stop rather than calling again. One or two are genuinely transient and say so.
-- **"This organization is hosted in a different region"** — you are calling the wrong one of the two servers. Re-authenticating will not fix it. Switch to the other server (`qlane-eu` ↔ `qlane-us`) and retry; if it is not connected, the user has to connect it once.
+- **A `403` that names the Qlane dashboard or a regional Qlane URL** — re-authenticating will not fix it. Relay the message word for word and stop; it says what to do.
 - **A not-found error** — this can mean the thing does not exist, or belongs to another organization, or that you lack access to it. The responses are deliberately identical, so do not tell the user which; suggest they check the project in Qlane.
 - **A plan you cannot read back** — the handle is the only way to reach a plan. There is no way to list previous plans.

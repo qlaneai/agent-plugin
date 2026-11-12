@@ -20,11 +20,17 @@ const skills = readdirSync(SKILLS_DIR, { withFileTypes: true })
         return [line.slice(0, at).trim(), line.slice(at + 1).trim()]
       })
     )
-    return { dir: d.name, frontmatter, body: match[2] }
+    return { dir: d.name, text, frontmatter, body: match[2] }
   })
 
 const SERVER_NAME = "qlane"
-const SERVERS = ["qlane-eu", "qlane-us"]
+// The plugin's one server. Its tools are namespaced `mcp__plugin_<plugin>_<server>__<tool>`,
+// so this name is half of every grant below.
+const SERVER = "qlane"
+// The two regional servers the plugin registered before it had one. No skill may still
+// name either: a grant on one matches nothing, and advice naming one sends the user to a
+// server that is no longer installed.
+const RETIRED_SERVERS = ["qlane-eu", "qlane-us"]
 
 // Every tool Qlane MCP serves, as its tools/list names them. A skill that names a
 // tool not on this list is not checked by the grant test below, so a tool the
@@ -79,11 +85,26 @@ const NAMED_NOT_GRANTED = {
   },
 }
 
-/** The shared region step: from its heading to the next `## ` heading. */
-const regionStep = (body) => stepOf(body, 0)
+/** The shared connection step: from its heading to the next `## ` heading. */
+const connectionStep = (body) => stepOf(body, 0)
+
+/** A step's text on one line: the step is hard-wrapped, and a pin must not depend on where. */
+const flat = (text) => text.replace(/\s+/g, " ")
+
+/** The shared entry for a `403` in a skill's "When something goes wrong" list, as one line. */
+const refusalEntry = (skill) => {
+  const section = skill.body.split("## When something goes wrong")[1] ?? ""
+  const entries = section.split("\n").filter((line) => line.startsWith("- **A `403`"))
+  assert.equal(
+    entries.length,
+    1,
+    `plugins/qlane/skills/${skill.dir} must have one \`403\` entry under "When something goes wrong"`
+  )
+  return entries[0]
+}
 
 const grantsOf = (skill) => new Set((skill.frontmatter["allowed-tools"] ?? "").split(/\s+/))
-const grant = (server, tool) => `mcp__plugin_${SERVER_NAME}_${server}__${tool}`
+const grant = (tool) => `mcp__plugin_${SERVER_NAME}_${SERVER}__${tool}`
 
 test("finds the skills it checks", () => {
   // Every other test here loops over `skills`, so an empty list would pass them all.
@@ -110,40 +131,66 @@ test("every skill's frontmatter names it after its directory and describes it", 
   }
 })
 
-test("every skill carries the region step word for word", () => {
+test("every skill carries the connection step word for word", () => {
   // A skill cannot include another's text, so the step is copied, and copies drift.
-  // The step decides which server every later call goes to; a skill whose copy
-  // drifted would route one region's users differently from the other skills.
+  // The step decides what a skill does before its first call; a skill whose copy
+  // drifted would treat an unconnected server differently from the other skills.
   const [first, ...rest] = skills
-  const reference = regionStep(first.body)
+  const reference = connectionStep(first.body)
   for (const s of rest) {
     assert.equal(
-      regionStep(s.body),
+      connectionStep(s.body),
       reference,
-      `plugins/qlane/skills/${s.dir} region step differs from ${first.dir}'s`
+      `plugins/qlane/skills/${s.dir} connection step differs from ${first.dir}'s`
     )
   }
 })
 
-test("every tool a skill names is granted on both servers, unless it is named to forbid it", () => {
+// Everyone who updates the plugin meets the not-connected branch once, because the
+// server's name and URL changed, so it is pinned and not only compared: three copies that
+// all lost it would still agree with each other.
+test("the connection step sends an unconnected user to authenticate `qlane`", () => {
+  for (const s of skills) {
+    const step = flat(connectionStep(s.body))
+    const at = `plugins/qlane/skills/${s.dir} step 0`
+    assert.match(step, /The plugin registers one server, `qlane`/, at)
+    // How a skill tells: an unconnected server shows only the client's two sign-in helpers.
+    assert.match(step, /exposes only `authenticate` and `complete_authentication`/, at)
+    assert.match(step, /\*\*Not connected\.\*\*/, at)
+    assert.match(step, /run `\/mcp` and authenticate `qlane`/, at)
+    assert.match(step, /a one-time step you cannot perform for them/, at)
+  }
+})
+
+// One URL means one sign-in, so one organization at a time. A person in several has no
+// second server to notice the difference on, and the skill is what tells them.
+test("the connection step says which organization is connected, when the user is in several", () => {
+  for (const s of skills) {
+    const step = flat(connectionStep(s.body))
+    const at = `plugins/qlane/skills/${s.dir} step 0`
+    assert.match(step, /\*\*Which organization\.\*\*/, at)
+    assert.match(step, /one organization at a time/, at)
+    assert.match(step, /say which organization is connected/, at)
+  }
+})
+
+test("every tool a skill names is granted, unless it is named to forbid it", () => {
   for (const s of skills) {
     const grants = grantsOf(s)
     const exceptions = NAMED_NOT_GRANTED[s.dir] ?? {}
-    // The region step names tools only to say what a connected server looks like.
-    const body = s.body.replace(regionStep(s.body), "")
+    // The connection step names tools only to say what a connected server looks like.
+    const body = s.body.replace(connectionStep(s.body), "")
     const named = TOOLS.filter((t) => new RegExp(`\\b${t}\\b`).test(body))
     assert.ok(named.length > 0, `plugins/qlane/skills/${s.dir} names no Qlane tool`)
     for (const tool of named) {
-      for (const server of SERVERS) {
-        const g = grant(server, tool)
-        if (tool in exceptions) {
-          assert.ok(
-            !grants.has(g),
-            `plugins/qlane/skills/${s.dir} grants ${g}, which it names only to forbid`
-          )
-        } else {
-          assert.ok(grants.has(g), `plugins/qlane/skills/${s.dir} is missing grant ${g}`)
-        }
+      const g = grant(tool)
+      if (tool in exceptions) {
+        assert.ok(
+          !grants.has(g),
+          `plugins/qlane/skills/${s.dir} grants ${g}, which it names only to forbid`
+        )
+      } else {
+        assert.ok(grants.has(g), `plugins/qlane/skills/${s.dir} is missing grant ${g}`)
       }
     }
     // An exception for a tool the skill no longer names would silence nothing.
@@ -160,24 +207,57 @@ test("every tool a skill names is granted on both servers, unless it is named to
 // so renaming a server silently invalidates every grant naming it. Nothing else notices:
 // a grant that matches nothing is not an error, it just brings back the permission
 // prompts its author believed were suppressed.
-test("every Qlane grant is a real tool, granted the same on both servers", () => {
+test("every Qlane grant is a real tool, in the one server's namespace", () => {
   for (const s of skills) {
     const qlane = [...grantsOf(s)].filter((g) => g.startsWith(`mcp__plugin_${SERVER_NAME}_`))
+    // Without this, a skill whose grants were all deleted would pass the loop below.
+    assert.ok(qlane.length > 0, `plugins/qlane/skills/${s.dir} grants no Qlane tool`)
     for (const g of qlane) {
-      const m = g.match(/^mcp__plugin_qlane_(qlane-eu|qlane-us)__([a-z_]+)$/)
-      // The retired single-server namespace, `mcp__plugin_qlane_qlane__…`, fails here:
-      // left behind it matches nothing, so it is invisible except that it does not work.
-      assert.ok(m, `plugins/qlane/skills/${s.dir} grant ${g} is not in a regional namespace`)
+      const m = g.match(/^mcp__plugin_qlane_qlane__([a-z_]+)$/)
+      // The retired regional namespaces, `mcp__plugin_qlane_qlane-eu__…` and
+      // `mcp__plugin_qlane_qlane-us__…`, fail here: left behind they match nothing, so
+      // they are invisible except that they do not work.
+      assert.ok(m, `plugins/qlane/skills/${s.dir} grant ${g} is not in the server's namespace`)
       assert.ok(
-        TOOLS.includes(m[2]),
-        `plugins/qlane/skills/${s.dir} grants ${m[2]}, which is not a Qlane tool`
-      )
-      const other = m[1] === "qlane-eu" ? "qlane-us" : "qlane-eu"
-      assert.ok(
-        qlane.includes(grant(other, m[2])),
-        `plugins/qlane/skills/${s.dir} grants ${m[2]} on ${m[1]} only`
+        TOOLS.includes(m[1]),
+        `plugins/qlane/skills/${s.dir} grants ${m[1]}, which is not a Qlane tool`
       )
     }
+  }
+})
+
+test("no skill names a retired regional server", () => {
+  // Read over the whole file, frontmatter included: a grant, a step and a line of error
+  // advice are three places one of these names used to stand.
+  for (const s of skills) {
+    for (const server of RETIRED_SERVERS) {
+      assert.ok(!s.text.includes(server), `plugins/qlane/skills/${s.dir} still names ${server}`)
+    }
+  }
+})
+
+// Through the one URL a wrong region cannot happen, so the old "switch to the other
+// server" advice has nothing to switch to. What can still come back is a `403` whose
+// message says where to go next, and which signing in again does not fix: an agent that
+// re-authenticates on it loops.
+test("every skill tells the agent to relay a `403` that re-authenticating cannot fix", () => {
+  const [first, ...rest] = skills
+  const reference = refusalEntry(first)
+  assert.match(reference, /^- \*\*A `403` that names the Qlane dashboard/)
+  assert.match(reference, /re-authenticating will not fix it/)
+  assert.match(reference, /Relay the message word for word and stop/)
+  for (const s of rest) {
+    assert.equal(
+      refusalEntry(s),
+      reference,
+      `plugins/qlane/skills/${s.dir} \`403\` entry differs from ${first.dir}'s`
+    )
+  }
+  for (const s of skills) {
+    assert.ok(
+      !/hosted in a different region/.test(s.body),
+      `plugins/qlane/skills/${s.dir} still carries the wrong-region advice`
+    )
   }
 })
 
