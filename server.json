@@ -3,7 +3,7 @@
   "name": "ai.qlane/qlane",
   "title": "Qlane",
   "description": "AI QA that runs your app in a browser on every pull request: projects, test targets, test cases.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "websiteUrl": "https://qlane.ai",
   "repository": {
     "url": "https://github.com/qlaneai/agent-plugin",
@@ -17,16 +17,5 @@
       "sizes": ["512x512"]
     }
   ],
-  "remotes": [
-    { "type": "streamable-http", "url": "https://mcp-eu.qlane.ai/api/mcp" },
-    { "type": "streamable-http", "url": "https://mcp-us.qlane.ai/api/mcp" }
-  ],
-  "_meta": {
-    "io.modelcontextprotocol.registry/publisher-provided": {
-      "regions": {
-        "eu": "https://mcp-eu.qlane.ai/api/mcp",
-        "us": "https://mcp-us.qlane.ai/api/mcp"
-      }
-    }
-  }
+  "remotes": [{ "type": "streamable-http", "url": "https://mcp.qlane.ai/mcp" }]
 }

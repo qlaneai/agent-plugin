@@ -33,7 +33,7 @@ test("server.json agrees with the live Server Card", async () => {
   assert.deepEqual(
     endpoints(ours),
     endpoints(card),
-    "regional endpoint set — type and url — must match production"
+    "endpoint set — type and url — must match production"
   )
 
   // NOT asserted: version. server.json tracks the server identity, plugin.json

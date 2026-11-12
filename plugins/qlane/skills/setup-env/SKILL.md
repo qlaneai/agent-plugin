@@ -3,7 +3,7 @@ name: setup-env
 description: Set up Qlane testing for this repository — find or create its Qlane project, create or fix a test target, have the developer enter its variables and test credentials on a Qlane page, run a configuration check and act on its diagnosis, then recommend switching on pull-request testing. Use when the user asks to set up, connect or onboard a repository to Qlane, to make Qlane's pull-request testing work, or when a configuration check failed — including plain requests such as "set up qlane for this repo", "connect this repo to qlane", "make PR testing work", "get qlane testing my pull requests" or "why did the configuration check fail". Asks before every change to the repository or to Qlane's configuration.
 license: MIT
 compatibility: Requires git, curl and a Qlane account. Pushing a prepared repository uses the developer's own git access.
-allowed-tools: mcp__plugin_qlane_qlane-eu__resolve_project mcp__plugin_qlane_qlane-eu__list_projects mcp__plugin_qlane_qlane-eu__get_project mcp__plugin_qlane_qlane-eu__list_environments mcp__plugin_qlane_qlane-eu__get_environment mcp__plugin_qlane_qlane-eu__list_source_repositories mcp__plugin_qlane_qlane-eu__request_environment_variables mcp__plugin_qlane_qlane-eu__request_test_credentials mcp__plugin_qlane_qlane-eu__start_boot_check mcp__plugin_qlane_qlane-eu__get_boot_check mcp__plugin_qlane_qlane-eu__list_test_sessions mcp__plugin_qlane_qlane-eu__get_test_session mcp__plugin_qlane_qlane-eu__get_test_result mcp__plugin_qlane_qlane-us__resolve_project mcp__plugin_qlane_qlane-us__list_projects mcp__plugin_qlane_qlane-us__get_project mcp__plugin_qlane_qlane-us__list_environments mcp__plugin_qlane_qlane-us__get_environment mcp__plugin_qlane_qlane-us__list_source_repositories mcp__plugin_qlane_qlane-us__request_environment_variables mcp__plugin_qlane_qlane-us__request_test_credentials mcp__plugin_qlane_qlane-us__start_boot_check mcp__plugin_qlane_qlane-us__get_boot_check mcp__plugin_qlane_qlane-us__list_test_sessions mcp__plugin_qlane_qlane-us__get_test_session mcp__plugin_qlane_qlane-us__get_test_result Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Bash(git diff:*) Bash(git log:*) Bash(git ls-files:*) Bash(git branch:*) Bash(curl -fsSL https://docs.qlane.ai/connect/docker-compose.md) Bash(curl -fsSL https://docs.qlane.ai/connect/single-repo.md) Bash(curl -fsSL https://docs.qlane.ai/connect/test-a-url.md) Read Grep Glob
+allowed-tools: mcp__plugin_qlane_qlane__resolve_project mcp__plugin_qlane_qlane__list_projects mcp__plugin_qlane_qlane__get_project mcp__plugin_qlane_qlane__list_environments mcp__plugin_qlane_qlane__get_environment mcp__plugin_qlane_qlane__list_source_repositories mcp__plugin_qlane_qlane__request_environment_variables mcp__plugin_qlane_qlane__request_test_credentials mcp__plugin_qlane_qlane__start_boot_check mcp__plugin_qlane_qlane__get_boot_check mcp__plugin_qlane_qlane__list_test_sessions mcp__plugin_qlane_qlane__get_test_session mcp__plugin_qlane_qlane__get_test_result Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Bash(git diff:*) Bash(git log:*) Bash(git ls-files:*) Bash(git branch:*) Bash(curl -fsSL https://docs.qlane.ai/connect/docker-compose.md) Bash(curl -fsSL https://docs.qlane.ai/connect/single-repo.md) Bash(curl -fsSL https://docs.qlane.ai/connect/test-a-url.md) Read Grep Glob
 ---
 
 # Set up Qlane for this repository
@@ -24,23 +24,28 @@ Qlane tests a pull request by running the application in a **test target** — a
 
 ---
 
-## Step 0 — There are two servers; use the connected one
+## Step 0 — Check that Qlane is connected
 
-The plugin registers one server per data region, `qlane-eu` and `qlane-us`, with identical
-tools. Only the one hosting the user's organization will authenticate — the other returns 403
-to everything, and re-authenticating cannot fix that.
+The plugin registers one server, `qlane`. It serves every Qlane region: each call goes to the
+region that hosts the organization the user signed in to.
 
-So use whichever server is connected. **You can tell by its tools**: a connected server exposes
-`resolve_project`, `list_projects`, `create_test_plan` and the rest, while an unconnected one
-exposes only `authenticate` and `complete_authentication` — two sign-in helpers the client
-adds. A server offering nothing but those is not connected, whatever its name suggests.
+**You can tell whether it is connected by its tools.** A connected server exposes
+`resolve_project`, `list_projects`, `create_test_plan` and the rest. An unconnected one exposes
+only `authenticate` and `complete_authentication`, two sign-in helpers the client adds. A
+server offering nothing but those is not connected.
 
-If **both** are connected, ask which organization they mean rather than picking; the two are
-different tenants and the answer is not inferable. If **neither** is, say so and point them at
-the region their organization is hosted in — connecting is a one-time step you cannot perform
-for them.
+- **Not connected.** Tell the user to run `/mcp` and authenticate `qlane`, and wait until they
+  have. In an editor without `/mcp`, they authenticate `qlane` in its MCP settings. It is a
+  one-time step you cannot perform for them. Everyone who updates from an earlier version of
+  the plugin starts here once, because the server's name changed.
+- **Which organization.** The server is connected to one organization at a time: the one the
+  user chose when they signed in. If the user says they belong to more than one, or a project
+  they expect is missing, say which organization is connected before going on: call
+  `list_projects` and show its project names, so they can recognise it. If it is the wrong
+  one, the user switches: they sign out of qlane.ai, then authenticate `qlane` again and
+  choose the other organization.
 
-Every tool named below exists on both servers. Call it on the one you settled here.
+Every tool named below is called on `qlane`.
 
 ## Step 1 — Find the project, or the one this repository joins
 
@@ -184,6 +189,6 @@ Report what was created or changed, the variable and test-credential names that 
 ## When something goes wrong
 
 - **A refusal that says your organization's Qlane MCP policy does not allow this editor or connection** — every tool here except `resolve_project`, `list_projects`, `get_project` and `list_environments` can be refused that way. Relay the message word for word and stop. Do not retry; the message says what to do.
-- **"This organization is hosted in a different region"** — you are calling the wrong one of the two servers. Re-authenticating will not fix it. Switch to the other server (`qlane-eu` ↔ `qlane-us`) and retry; if it is not connected, the user has to connect it once.
+- **A `403` that names the Qlane dashboard or a regional Qlane URL** — re-authenticating will not fix it. Relay the message word for word and stop; it says what to do.
 - **A payment or subscription refusal** — relay the message and stop. Most say retrying will not help.
 - **A not-found error** — the thing may not exist, may belong to another organization, or may be out of your access. The responses are deliberately identical, so do not tell the user which; suggest they check in Qlane.

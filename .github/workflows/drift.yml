@@ -66,7 +66,7 @@ jobs:
               "" \
               "This check is the only one that can see a change made outside this repo, so the" \
               "likeliest cause is a change to the card in the main repo that has not been" \
-              "mirrored here — or a regional endpoint that moved." \
+              "mirrored here — or the server's endpoint moved." \
               "" \
               "Run: $RUN_URL")"
           fi
