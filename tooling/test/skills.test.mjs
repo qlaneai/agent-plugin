@@ -376,6 +376,12 @@ test("setup-env reads a remote URL with its credential stripped", async () => {
     step1,
     /\*\*Never send or repeat anything before `@` in an `https:\/\/` remote URL\*\*/
   )
+  // A denied prompt or a shell without sed must not fall back to the bare command, which
+  // `Bash(git remote:*)` pre-approves and which prints the credential.
+  assert.match(
+    step1,
+    /If that command can't run, don't run `git remote get-url` on its own; ask the developer for owner\/name\./
+  )
   const secret = ["tok", "en"].join("") + "_" + "x".repeat(24)
   const strip = (url) =>
     execFileSync("sh", ["-c", `printf '%s\\n' "$URL" | ${command}`], {
@@ -401,6 +407,10 @@ test("setup-env reads a remote URL with its credential stripped", async () => {
     ["ssh://git@github.com/acme/app.git", "ssh://github.com/acme/app.git"],
     ["git@github.com:acme/app.git", "git@github.com:acme/app.git"],
     ["deploy@gitlab.example.com:acme/app", "deploy@gitlab.example.com:acme/app"],
+    // An `@` inside the credential: the strip runs to the last `@` before the path.
+    [`https://someone:p@${secret}@github.com/acme/app.git`, "https://github.com/acme/app.git"],
+    // A scheme in capitals.
+    [`HTTPS://someone:${secret}@github.com/acme/app.git`, "HTTPS://github.com/acme/app.git"],
   ]
   for (const [url, expected] of cases) {
     const out = strip(url)

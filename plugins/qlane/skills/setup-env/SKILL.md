@@ -59,10 +59,10 @@ It prints the remotes' names only, never their URLs.
 Read the chosen remote's URL with anything before `@` removed:
 
 ```bash
-git remote get-url <remote> | sed -E 's#^([a-z][a-z0-9+.-]*://)[^/@]*@#\1#'
+git remote get-url <remote> | sed -E 's#^([A-Za-z][A-Za-z0-9+.-]*://)[^/]*@#\1#'
 ```
 
-**Never send or repeat anything before `@` in an `https://` remote URL**: it can hold a password or a token. Read `owner/name` from the URL, in either its SSH or its HTTPS form, without a trailing `.git`.
+**Never send or repeat anything before `@` in an `https://` remote URL**: it can hold a password or a token. If that command can't run, don't run `git remote get-url` on its own; ask the developer for owner/name. Read `owner/name` from the URL, in either its SSH or its HTTPS form, without a trailing `.git`.
 
 When the repository path stopped here and the developer chooses a URL test target, skip `resolve_project` (there is no remote to resolve) and settle the project with `list_projects` as in **None** below; if they then create one, leave out `sourceControl`.
 
