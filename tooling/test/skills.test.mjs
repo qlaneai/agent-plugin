@@ -272,82 +272,143 @@ test("the plugin README discloses every outside service a skill reaches", () => 
 
 // Run outside the application's repository, the skill has nothing to inspect and a URL
 // target is the only kind it can propose, so the developer ends up with no code plan and
-// no pull-request testing without having chosen that (qlaneai/poc#5145). Step 1 stops the
-// repository path in two cases and must never block in a third, each pinned by its own
-// words: no remote, a repository the source connection can't see, and a check that
-// cannot run.
+// no pull-request testing without having chosen that (qlaneai/poc#5145). Step 1 reads the
+// remotes and stops the repository path only on a signal that has one cause, or with a
+// remedy that holds for every cause; a check that cannot run never stops it. Each rule is
+// pinned inside its own bullet, so a rule moved to, or swapped with, another bullet fails.
+const bulletOf = (text, lead) => {
+  const start = text.indexOf(`- **${lead}`)
+  assert.ok(start >= 0, `step 1 has the bullet "${lead}"`)
+  const end = text.indexOf("\n", start)
+  return text.slice(start, end === -1 ? undefined : end)
+}
+
 test("setup-env stops outside the application's repository, and offers a URL target as a choice", () => {
   const setup = skills.find((s) => s.dir === "setup-env")
   assert.ok(setup, "the setup-env skill exists")
   const step1 = stepOf(setup.body, 1)
-  // The approved copy, word for word: each is what the developer reads.
+  // The approved copy, word for word: each is what the developer reads, in its own bullet.
   const NOT_A_REPOSITORY =
     "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
-  const NOT_VISIBLE =
-    "\"This repository isn't one Qlane's GitHub App can see. Someone who manages the App's installation on GitHub, usually an owner of the account or organization it is installed on, can give it access there; a Qlane admin can open that page from Connections, on the GitHub card, with Manage on GitHub. Or open your editor in a repository it can see, then run /qlane:setup-env again.\""
   const NO_REMOTE =
-    "\"This repository isn't pushed to GitHub or GitLab yet, so Qlane can't reach its code. Push it to GitHub or GitLab, then run /qlane:setup-env again.\""
+    '"This repository has no remote on GitHub or GitLab, so Qlane can\'t reach its code. Push it to GitHub or GitLab, then run /qlane:setup-env again."'
+  const NOT_VISIBLE =
+    "\"I couldn't find <owner/name> among the repositories Qlane's GitHub App can see. If that is the application's repository and it belongs to the account or organization the App is installed on, someone who manages the App's installation on GitHub, usually an owner, can give it access there; a Qlane admin can open that page from Connections, in the GitHub card's menu, with Manage on GitHub. Otherwise, open your editor in the application's repository, then run /qlane:setup-env again.\""
   // TODO(qlaneai/poc#5898): "its QA baseline explores without a code plan" holds only while
   // the baseline answers no-repository for a URL target. The PR that lands #5898 (the
   // baseline reads a URL target's linked repositories) rewrites this sentence and this pin.
   const URL_TRADE_OFF =
-    '"A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can\'t test pull requests; and the accounts and data the tests need must already exist in that deployment."'
-  for (const copy of [NOT_A_REPOSITORY, NO_REMOTE, NOT_VISIBLE, URL_TRADE_OFF]) {
-    assert.ok(step1.includes(copy), `step 1 says, verbatim: ${copy}`)
-  }
-  // (1) The remote: `origin` is only a name. A remote under another name is asked about,
-  // never read as "not a repository"; no remote at all, or not a repository, stops the
-  // repository path with its own message (review of b66928ae, I1).
-  assert.match(step1, /git remote -v/)
-  assert.doesNotMatch(step1, /git remote get-url origin/)
-  assert.match(step1, /\*\*The command fails\*\* — the folder is not a git repository/)
-  assert.match(step1, /\*\*It lists no remote\*\* — the repository has never been pushed/)
-  assert.match(
-    step1,
-    /\*\*It lists other remotes but no `origin`\*\* — ask the developer which one is the application's repository/
-  )
+    '"A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can\'t test pull requests; and the data the tests need must already exist in that deployment, and so must its test accounts unless you let Qlane sign up its own there."'
+
+  // (1) The remotes: names only, and each case its own bullet with its own outcome.
+  assert.match(step1, /```bash\ngit remote\n```/)
+  assert.doesNotMatch(step1, /git remote -v|git remote get-url origin/)
+  const notRepo = bulletOf(step1, "It fails, and git says `not a git repository`**")
+  assert.ok(notRepo.includes(NOT_A_REPOSITORY), "not a repository says its own message")
+  assert.match(notRepo, /Then offer a URL test target/)
+  const otherFailure = bulletOf(step1, "It fails any other way**")
+  assert.match(otherFailure, /relay git's message as it is and stop/)
+  assert.match(otherFailure, /does not mean the folder is the wrong one/)
+  assert.doesNotMatch(otherFailure, /isn't the application's repository|offer a URL/)
+  const noRemote = bulletOf(step1, "It prints nothing**")
+  assert.ok(noRemote.includes(NO_REMOTE), "no remote says its own message")
+  assert.match(noRemote, /Then offer a URL test target/)
+  assert.match(bulletOf(step1, "It lists `origin`**"), /— use `origin`\.$/)
+  const otherRemotes = bulletOf(step1, "It lists other remotes but no `origin`**")
+  assert.match(otherRemotes, /ask the developer which one is the application's repository/)
+  assert.match(otherRemotes, /If none of them is, stop the repository path as for a folder/)
   // Without a remote there is nothing to resolve and no provider to read.
   assert.match(step1, /skip `resolve_project` \(there is no remote to resolve\)/)
   assert.match(step1, /if they then create one, leave out `sourceControl`/)
-  // (2) Not visible: decided only after the whole list was read, by name, never by host.
-  assert.match(step1, /list_source_repositories/)
-  assert.match(step1, /page while `hasMore`/)
-  // Searched by the repository's name, matched on the exact owner/name: GitHub's search is a
-  // substring match on full_name, so a query of the whole remote URL matches nothing.
-  assert.match(step1, /the repository's name \(the last part of `owner\/name`\) as `query`/)
-  assert.match(step1, /an entry whose `fullName` matches `owner\/name` exactly, ignoring case/)
+  assert.match(step1, /Call `resolve_project` with that `owner\/name`\./)
+
+  // (2) The source-visibility check: queried by name, matched exactly, by name not host.
   assert.match(step1, /and if the remote step succeeded, check that/)
-  assert.match(step1, /read the whole list and this repository is not in it/i)
-  assert.match(step1, /never hosts/)
-  // GitHub only: GitLab's project search may not match a repository by its path, so an
-  // absent entry there proves nothing, and the check carries on instead of saying "not visible".
+  assert.match(step1, /the repository's name \(the last part of `owner\/name`\) as `query`/)
+  assert.match(step1, /and page while `hasMore`/)
+  assert.match(step1, /an entry whose `fullName` matches `owner\/name` exactly, ignoring case/)
+  assert.match(step1, /Compare names only, never hosts:/)
+  assert.match(step1, /these rules take precedence over "When something goes wrong" below:/)
+  const rules = step1.slice(step1.indexOf("these rules take precedence"))
+  const nullList = bulletOf(rules, "`repositories` is null**")
+  assert.match(nullList, /— relay `source\.message`, then offer a URL test target/)
+  assert.match(nullList, /Do not create a code-based test target until the connection is fixed/)
+  const refused = bulletOf(rules, "The call is refused, for any reason, or errors**")
+  assert.match(refused, /— say nothing about it and carry on; this check never stops setup/)
   // `gitlab`, not "not github": an unavailable source reports sourceControl null together
   // with a null list, and the null-list rule must win there.
-  assert.match(step1, /`source\.sourceControl` is `gitlab`\*\* — carry on/)
+  const gitlab = bulletOf(rules, "`source.sourceControl` is `gitlab`**")
+  assert.match(gitlab, /— carry on without the comparison below/)
   assert.doesNotMatch(step1, /is not `github`/)
-  assert.doesNotMatch(step1, /Maintainer access/)
-  // (3) The check never blocks: a refusal or error carries on, and a null list still
-  // offers the URL target, both taking precedence over "When something goes wrong".
-  assert.match(step1, /refused, for any reason, or errors/)
-  assert.match(step1, /never stops setup on its own/)
+  const notVisible = bulletOf(rules, "You read the whole list and this repository is not in it**")
+  assert.ok(notVisible.includes(NOT_VISIBLE), "not visible says its own message")
+  assert.match(notVisible, /first ask whether one of them is the application's repository/)
+  assert.match(notVisible, /\." Then offer a URL test target, as below\.$/)
+  // The GitLab rule comes before the not-visible stop it exempts GitLab from.
+  assert.ok(rules.indexOf(gitlab) < rules.indexOf(notVisible), "the GitLab rule comes first")
+
+  // (3) The URL target: the alternative, never the first offer; declining it stops.
+  const urlOffer = step1.slice(step1.indexOf("**Testing a deployed URL instead.**"))
+  assert.ok(urlOffer.includes(URL_TRADE_OFF), "the trade-off sentence, word for word")
   assert.match(
-    step1,
-    /`repositories` is null\*\* — relay `source\.message`, then offer a URL test target/
+    urlOffer,
+    /^\*\*Testing a deployed URL instead\.\*\* Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it\./
   )
-  assert.match(step1, /take precedence over "When something goes wrong"/)
-  assert.match(step1, /Do not create a code-based test target until the connection is fixed/)
-  // Not visible: the stop offers the URL target, the PR's headline behaviour.
   assert.match(
-    step1,
-    /open your editor in a repository it can see, then run \/qlane:setup-env again\." Then offer a URL test target, as below\./
+    urlOffer,
+    /Create one only if they choose it, with kind `URL` from step 2\. If they decline, stop/
   )
-  // The URL target is the alternative, never the first offer, and declining it stops.
-  assert.match(
-    step1,
-    /Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it\./
-  )
-  assert.match(step1, /If they decline, stop/)
-  // The alternative is created only on a choice, and no credits confirmation rides on it.
-  assert.match(step1, /only if they choose it/)
   assert.doesNotMatch(step1, /credit/i)
+})
+
+// A remote URL can carry a password or a token before `@` (https://user:token@host/…).
+// Step 1 reads it through the skill's own command, which must strip that part before the
+// agent sees it, so it never reaches the transcript or a Qlane tool. The command is run
+// here, on a credential-shaped value built at runtime so no secret scanner reads one.
+test("setup-env reads a remote URL with its credential stripped", async () => {
+  const { execFileSync } = await import("node:child_process")
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step1 = stepOf(setup.body, 1)
+  const command = step1.match(/```bash\ngit remote get-url <remote> \| (sed .*)\n```/)?.[1]
+  assert.ok(command, "step 1 reads the URL through a stripping command")
+  assert.match(
+    step1,
+    /\*\*Never send or repeat anything before `@` in an `https:\/\/` remote URL\*\*/
+  )
+  const secret = ["tok", "en"].join("") + "_" + "x".repeat(24)
+  const strip = (url) =>
+    execFileSync("sh", ["-c", `printf '%s\\n' "$URL" | ${command}`], {
+      env: { ...process.env, URL: url },
+    })
+      .toString()
+      .trim()
+  // owner/name, read as step 1 says: from the SSH (scp, `user@host:owner/name`) or the URL
+  // form, without a trailing `.git`. In the scp form `git@` is a user, not a secret, and
+  // the strip leaves it; in a URL form the strip removes whatever precedes `@`.
+  const ownerName = (url) =>
+    (url.includes("://")
+      ? url.replace(/^[^:]+:\/\/[^/]+\//, "")
+      : url.replace(/^[^:]+:/, "")
+    ).replace(/\.git$/, "")
+  const cases = [
+    [`https://someone:${secret}@github.com/acme/app.git`, "https://github.com/acme/app.git"],
+    [
+      `https://${secret}@gitlab.example.com/group/app.git`,
+      "https://gitlab.example.com/group/app.git",
+    ],
+    ["https://github.com/acme/app.git", "https://github.com/acme/app.git"],
+    ["ssh://git@github.com/acme/app.git", "ssh://github.com/acme/app.git"],
+    ["git@github.com:acme/app.git", "git@github.com:acme/app.git"],
+    ["deploy@gitlab.example.com:acme/app", "deploy@gitlab.example.com:acme/app"],
+  ]
+  for (const [url, expected] of cases) {
+    const out = strip(url)
+    assert.equal(out, expected)
+    assert.ok(!out.includes(secret), "no credential survives")
+    assert.equal(
+      ownerName(out),
+      url.includes("gitlab.example.com/group") ? "group/app" : "acme/app"
+    )
+  }
 })
