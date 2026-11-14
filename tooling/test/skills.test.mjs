@@ -301,7 +301,16 @@ test("setup-env step 1 finds an existing URL target before offering another", ()
   const setup = skills.find((s) => s.dir === "setup-env")
   assert.ok(setup, "the setup-env skill exists")
   const step1 = stepOf(setup.body, 1)
-  assert.match(step1, /its `pullRequestRepoFullNames` or `agentLinkedRepos` lists this repository/)
+  assert.match(
+    step1,
+    /its `pullRequestRepoFullNames` lists this repository, or, on a `URL` target, its `agentLinkedRepos` does/
+  )
+  // On any other kind a linked repository is one the agent may read, never one whose pull
+  // requests reach the target, so counting it as coverage would recommend pull-request
+  // testing on a target that repository never triggers (review of 48e2c687).
+  assert.match(step1, /On any other kind, a repository in `agentLinkedRepos` is one/)
+  // list_environments returns 50 by default, so "every URL test target" needs the maximum.
+  assert.match(step1, /`list_environments` with `limit` 100/)
   assert.match(step1, /Show the developer every `URL` test target in the project by its `baseUrl`/)
   assert.match(step1, /ask whether one of them is this application's deployed site/)
   assert.match(step1, /before you offer to create another/)
