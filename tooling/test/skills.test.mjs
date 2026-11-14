@@ -285,8 +285,11 @@ test("setup-env stops outside the application's repository, and offers a URL tar
     "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
   const NOT_VISIBLE =
     "\"This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again.\""
+  // TODO(qlaneai/poc#5898): "its QA baseline explores without a code plan" holds only while
+  // the baseline answers no-repository for a URL target. The PR that lands #5898 (the
+  // baseline reads a URL target's linked repositories) rewrites this sentence and this pin.
   const URL_TRADE_OFF =
-    "\"A URL test target tests one running deployment. Qlane won't read your code, so the QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment.\""
+    '"A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can\'t test pull requests; and the accounts and data the tests need must already exist in that deployment."'
   for (const copy of [NOT_A_REPOSITORY, NOT_VISIBLE, URL_TRADE_OFF]) {
     assert.ok(step1.includes(copy), `step 1 says, verbatim: ${copy}`)
   }
