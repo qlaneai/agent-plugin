@@ -272,7 +272,10 @@ test("setup-env asks a URL target's linked repositories and deployed-from branch
   assert.match(step5, /ask the developer whether to leave it out, and never send a create/)
   assert.match(step5, /On GitLab an absent entry proves nothing/)
   // A reading, not a read: and a check repeated by creating again makes a second target.
-  assert.match(step5, /It is a reading of what chat would read now, not a read that happened/)
+  assert.match(
+    step5,
+    /It is a reading of what Qlane's chat would read now, not a read that happened/
+  )
   assert.match(step5, /To check again, never create the test target again/)
   // Sending the list again would check, and on GitLab register, every repository again.
   assert.match(step5, /set the same `deployedFromBranch`, and only that field/)
@@ -283,6 +286,18 @@ test("setup-env asks a URL target's linked repositories and deployed-from branch
     /call `update_environment` with the `environmentId` and its `linkedRepositories`/
   )
   assert.match(step5, /`deployedFromBranch` sets the branch, and `null` clears it/)
+  // A dropped link is unregistered on the customer's GitLab when no other test target still
+  // references it, a side effect on their own system that the developer hears before the yes.
+  assert.match(
+    step5,
+    /On a GitLab connection, a repository you drop from the list, or clear with `\[\]`, is also unregistered from that connection/
+  )
+  assert.match(step5, /unless another test target in the organization still references it/)
+  // "Chat" alone reads as the editor's own chat; the first use names Qlane's.
+  assert.match(
+    step5,
+    /Qlane's chat, in the Qlane app, reads the linked repositories at that branch/
+  )
   const step8 = stepOf(setup.body, 8)
   assert.match(
     step8,
