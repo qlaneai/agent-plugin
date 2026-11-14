@@ -208,7 +208,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read(PORTABLE_MANIFEST).version, "0.6.6")
+  assert.equal(read(PORTABLE_MANIFEST).version, "0.6.7")
   for (const f of [CLAUDE_MANIFEST, CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read(PORTABLE_MANIFEST).name, `${f} name`)
     assert.equal(read(f).version, read(PORTABLE_MANIFEST).version, `${f} version`)
