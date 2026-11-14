@@ -290,9 +290,12 @@ test("setup-env asks a URL target's linked repositories and deployed-from branch
   // references it, a side effect on their own system that the developer hears before the yes.
   assert.match(
     step5,
-    /On a GitLab connection, a repository you drop from the list, or clear with `\[\]`, is also unregistered from that connection/
+    /On a GitLab connection, when a repository is dropped from the list, or cleared with `\[\]`, Qlane also tries to unregister it from that connection/
   )
-  assert.match(step5, /unless another test target in the organization still references it/)
+  assert.match(
+    step5,
+    /unless another test target in a project on that connection still references it; say so when you say what you will change\./
+  )
   // "Chat" alone reads as the editor's own chat; the first use names Qlane's.
   assert.match(
     step5,
