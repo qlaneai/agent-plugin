@@ -284,7 +284,7 @@ test("setup-env stops outside the application's repository, and offers a URL tar
   const NOT_A_REPOSITORY =
     "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
   const NOT_VISIBLE =
-    "\"This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again.\""
+    "\"This repository isn't one Qlane's GitHub App can see. Someone who manages the App's installation on GitHub, usually an owner of the account or organization it is installed on, can give it access there; a Qlane admin can open that page from Connections, on the GitHub card, with Manage on GitHub. Or open your editor in a repository it can see, then run /qlane:setup-env again.\""
   const NO_REMOTE =
     "\"This repository isn't pushed to GitHub or GitLab yet, so Qlane can't reach its code. Push it to GitHub or GitLab, then run /qlane:setup-env again.\""
   // TODO(qlaneai/poc#5898): "its QA baseline explores without a code plan" holds only while
