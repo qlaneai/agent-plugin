@@ -292,6 +292,21 @@ test("setup-env asks a URL target's linked repositories and deployed-from branch
   assert.match(step8, /no configuration check reads linked repositories/)
 })
 
+// Step 1 decides whether to fix an existing test target or create another. A URL target
+// names a repository only through agentLinkedRepos, never through pullRequestRepoFullNames,
+// and one that links none names no repository at all, so neither resolve_project nor a
+// check of pullRequestRepoFullNames finds it. Without these rules, step 5's path for an
+// existing URL target is reached only by guessing (CodeRabbit's review of #18).
+test("setup-env step 1 finds an existing URL target before offering another", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const step1 = stepOf(setup.body, 1)
+  assert.match(step1, /its `pullRequestRepoFullNames` or `agentLinkedRepos` lists this repository/)
+  assert.match(step1, /Show the developer every `URL` test target in the project by its `baseUrl`/)
+  assert.match(step1, /ask whether one of them is this application's deployed site/)
+  assert.match(step1, /before you offer to create another/)
+})
+
 // Anthropic's directory asks whether any skill sends data to a service other than the
 // declared connectors, and its security scan fails a version that contacts somewhere the
 // README does not disclose. So every outside service a skill reaches is named in the
