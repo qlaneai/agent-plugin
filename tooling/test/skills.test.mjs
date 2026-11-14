@@ -285,24 +285,46 @@ test("setup-env stops outside the application's repository, and offers a URL tar
     "\"This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again.\""
   const NOT_VISIBLE =
     "\"This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again.\""
+  const NO_REMOTE =
+    "\"This repository isn't pushed to GitHub or GitLab yet, so Qlane can't reach its code. Push it to GitHub or GitLab, then run /qlane:setup-env again.\""
   // TODO(qlaneai/poc#5898): "its QA baseline explores without a code plan" holds only while
   // the baseline answers no-repository for a URL target. The PR that lands #5898 (the
   // baseline reads a URL target's linked repositories) rewrites this sentence and this pin.
   const URL_TRADE_OFF =
     '"A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can\'t test pull requests; and the accounts and data the tests need must already exist in that deployment."'
-  for (const copy of [NOT_A_REPOSITORY, NOT_VISIBLE, URL_TRADE_OFF]) {
+  for (const copy of [NOT_A_REPOSITORY, NO_REMOTE, NOT_VISIBLE, URL_TRADE_OFF]) {
     assert.ok(step1.includes(copy), `step 1 says, verbatim: ${copy}`)
   }
-  // (1) No remote: the repository path stops.
-  assert.match(step1, /not a git repository, or it has no `origin`/)
+  // (1) The remote: `origin` is only a name. A remote under another name is asked about,
+  // never read as "not a repository"; no remote at all, or not a repository, stops the
+  // repository path with its own message (review of b66928ae, I1).
+  assert.match(step1, /git remote -v/)
+  assert.doesNotMatch(step1, /git remote get-url origin/)
+  assert.match(step1, /\*\*The command fails\*\* — the folder is not a git repository/)
+  assert.match(step1, /\*\*It lists no remote\*\* — the repository has never been pushed/)
+  assert.match(
+    step1,
+    /\*\*It lists other remotes but no `origin`\*\* — ask the developer which one is the application's repository/
+  )
+  // Without a remote there is nothing to resolve and no provider to read.
+  assert.match(step1, /skip `resolve_project` \(there is no remote to resolve\)/)
+  assert.match(step1, /if they then create one, leave out `sourceControl`/)
   // (2) Not visible: decided only after the whole list was read, by name, never by host.
   assert.match(step1, /list_source_repositories/)
   assert.match(step1, /page while `hasMore`/)
+  // Searched by the repository's name, matched on the exact owner/name: GitHub's search is a
+  // substring match on full_name, so a query of the whole remote URL matches nothing.
+  assert.match(step1, /the repository's name \(the last part of `owner\/name`\) as `query`/)
+  assert.match(step1, /an entry whose `fullName` matches `owner\/name` exactly, ignoring case/)
+  assert.match(step1, /and if the remote step succeeded, check that/)
   assert.match(step1, /read the whole list and this repository is not in it/i)
   assert.match(step1, /never hosts/)
   // GitHub only: GitLab's project search may not match a repository by its path, so an
   // absent entry there proves nothing, and the check carries on instead of saying "not visible".
-  assert.match(step1, /`source\.sourceControl` is not `github`\*\* — carry on/)
+  // `gitlab`, not "not github": an unavailable source reports sourceControl null together
+  // with a null list, and the null-list rule must win there.
+  assert.match(step1, /`source\.sourceControl` is `gitlab`\*\* — carry on/)
+  assert.doesNotMatch(step1, /is not `github`/)
   assert.doesNotMatch(step1, /Maintainer access/)
   // (3) The check never blocks: a refusal or error carries on, and a null list still
   // offers the URL target, both taking precedence over "When something goes wrong".
@@ -313,6 +335,18 @@ test("setup-env stops outside the application's repository, and offers a URL tar
     /`repositories` is null\*\* — relay `source\.message`, then offer a URL test target/
   )
   assert.match(step1, /take precedence over "When something goes wrong"/)
+  assert.match(step1, /Do not create a code-based test target until the connection is fixed/)
+  // Not visible: the stop offers the URL target, the PR's headline behaviour.
+  assert.match(
+    step1,
+    /open your editor in a repository it can see, then run \/qlane:setup-env again\." Then offer a URL test target, as below\./
+  )
+  // The URL target is the alternative, never the first offer, and declining it stops.
+  assert.match(
+    step1,
+    /Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it\./
+  )
+  assert.match(step1, /If they decline, stop/)
   // The alternative is created only on a choice, and no credits confirmation rides on it.
   assert.match(step1, /only if they choose it/)
   assert.doesNotMatch(step1, /credit/i)

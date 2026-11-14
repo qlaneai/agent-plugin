@@ -45,14 +45,19 @@ Every tool named below exists on both servers. Call it on the one you settled he
 ## Step 1 — Find the project, or the one this repository joins
 
 ```bash
-git remote get-url origin
+git remote -v
 ```
 
-If that fails — the folder is not a git repository, or it has no `origin` — stop the repository path and say: "This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again." Then offer a URL test target, as in "Testing a deployed URL instead" below. If they choose it, skip `resolve_project` (there is no remote to resolve) and settle the project with `list_projects` as in **None** below; if they then create one, leave out `sourceControl`.
+- **The command fails** — the folder is not a git repository. Stop the repository path and say: "This folder isn't the application's repository, so I can't set up a code-based test target from here. Open your editor in the application's repository folder and run /qlane:setup-env again." Then offer a URL test target, as in "Testing a deployed URL instead" below.
+- **It lists no remote** — the repository has never been pushed, so no source connection can reach it. Stop the repository path and say: "This repository isn't pushed to GitHub or GitLab yet, so Qlane can't reach its code. Push it to GitHub or GitLab, then run /qlane:setup-env again." Then offer a URL test target, as below.
+- **It lists `origin`** — use `origin`'s URL as the repository's remote.
+- **It lists other remotes but no `origin`** — ask the developer which one is the application's repository, and use that remote's URL. If none of them is, stop the repository path as for a folder that is not a git repository.
+
+When the repository path stopped here and the developer chooses a URL test target, skip `resolve_project` (there is no remote to resolve) and settle the project with `list_projects` as in **None** below; if they then create one, leave out `sourceControl`.
 
 A Qlane project is one **application**, and it can span several repositories. So the question is not "does this repository have a project" but "which application is it part of".
 
-Call `resolve_project` with the repository identity. It returns 0, 1, or several matches and **never picks one for you**. Each match is one test target that names this repository, so one project can appear more than once.
+Call `resolve_project` with the remote's URL. It returns 0, 1, or several matches and **never picks one for you**. Each match is one test target that names this repository, so one project can appear more than once.
 
 - **One project** — use it.
 - **Several projects** — this repository belongs to more than one. Show their names and ask which one to set up.
@@ -65,10 +70,10 @@ For this check only, these rules take precedence over "When something goes wrong
 
 - **`repositories` is null** — relay `source.message`, then offer a URL test target, as below. Do not create a code-based test target until the connection is fixed.
 - **The call is refused, for any reason, or errors** — say nothing about it and carry on; this check never stops setup on its own. The repository kinds check again in step 3, and a refusal that applies to later steps too is relayed there.
-- **`source.sourceControl` is not `github`** — carry on without the comparison below; step 3 checks the repository for the kinds that build from it. A search there may not match a repository by the name in its remote, so an absent entry would not prove the connection cannot see it.
+- **`source.sourceControl` is `gitlab`** — carry on without the comparison below; step 3 checks the repository for the kinds that build from it. A search there may not match a repository by the name in its remote, so an absent entry would not prove the connection cannot see it.
 - **You read the whole list and this repository is not in it** — say: "This repository isn't one this project's source connection can see. In Qlane, give the connection access to it, or open your editor in a repository it can see, then run /qlane:setup-env again." Then offer a URL test target, as below.
 
-**Testing a deployed URL instead.** Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it. Say: "A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment." Create one only if they choose it, with kind `URL` from step 2.
+**Testing a deployed URL instead.** Offer this when the check above or the remote step stopped the repository path, or when the developer asks for it. Say: "A URL test target tests one running deployment. Qlane reads code only from the repositories you link to the target, and its QA baseline explores without a code plan; it can't test pull requests; and the accounts and data the tests need must already exist in that deployment." Create one only if they choose it, with kind `URL` from step 2. If they decline, stop: nothing more can be set up from here until the repository path is fixed.
 
 With a project, call `get_project` and `list_environments`. For each existing test target, `get_environment` shows its configuration and `pullRequestRepoFullNames`, the repositories whose pull requests can reach it.
 
