@@ -3,7 +3,7 @@ name: test-local-changes
 description: Test uncommitted local changes before opening a pull request. Asks Qlane to plan what should be tested for the current diff, then exercises those cases against the running app — driving the browser, reading logs and checking data where available — and reports suspected bugs for the developer to triage. Use when the user has local edits and asks to test them, check for regressions, verify a change before pushing, or find what their change might have broken — including plain requests such as "test my changes", "test this before I push" or "did I break anything".
 license: MIT
 compatibility: Requires git and a Qlane account. Browser cases need browser-automation tooling in the session; without it those cases are reported as not checked rather than skipped silently.
-allowed-tools: mcp__plugin_qlane_qlane__resolve_project mcp__plugin_qlane_qlane__list_projects mcp__plugin_qlane_qlane__create_test_plan mcp__plugin_qlane_qlane__get_test_plan Bash(git diff:*) Bash(git remote:*) Bash(git rev-parse:*) Bash(git status:*) Read Grep
+allowed-tools: Read Grep
 ---
 
 # Test local changes
