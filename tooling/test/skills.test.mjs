@@ -103,6 +103,14 @@ test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS",
       )
     }
   }
+  // With nothing pre-approved, a user may be asked before each call; the README says so.
+  const readme = readFileSync(new URL("README.md", PLUGIN_DIR), "utf8").replace(/\s+/g, " ")
+  assert.ok(
+    readme.includes(
+      "Depending on your permission settings, Claude Code may ask before each Qlane tool call and each git or GitHub CLI command a skill runs. To skip those prompts, allow them in your own Claude Code permission settings."
+    ),
+    "plugins/qlane/README.md must say Claude Code may ask before each call"
+  )
   // The skills do declare lists, so a parser that found none would be checking nothing.
   assert.ok(lists >= skills.length, `expected an allowed-tools list per skill, found ${lists}`)
 })
