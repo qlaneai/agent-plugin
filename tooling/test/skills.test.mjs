@@ -130,7 +130,7 @@ test("the plugin README says Claude Code may ask before each call a skill makes"
   const readme = readFileSync(new URL("README.md", PLUGIN_DIR), "utf8").replace(/\s+/g, " ")
   assert.ok(
     readme.includes(
-      "Depending on your permission settings, Claude Code may ask before each Qlane tool call and each git or GitHub CLI command a skill runs. To skip those prompts, allow them in your own Claude Code permission settings."
+      "Depending on your permission settings, Claude Code may ask before each Qlane tool call and each git, GitHub CLI or curl command a skill runs. To skip those prompts, allow them in your own Claude Code permission settings."
     ),
     "plugins/qlane/README.md must say Claude Code may ask before each call"
   )

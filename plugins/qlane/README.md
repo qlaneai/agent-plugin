@@ -57,8 +57,8 @@ claude plugin install qlane@qlane-plugin
 Then run `/mcp` and authenticate `qlane`. There is no configuration step and nothing to type.
 
 Depending on your permission settings, Claude Code may ask before each Qlane tool call and each
-git or GitHub CLI command a skill runs. To skip those prompts, allow them in your own Claude Code
-permission settings.
+git, GitHub CLI or curl command a skill runs. To skip those prompts, allow them in your own Claude
+Code permission settings.
 
 ### VS Code and GitHub Copilot
 
