@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readdirSync, readFileSync } from "node:fs"
+import { load as loadYaml } from "js-yaml"
 
 // Every skill under plugins/qlane/skills/, read from disk rather than listed, so a skill added
 // later is checked by every test here without anyone remembering to register it.
@@ -57,70 +58,70 @@ test("finds the skills it checks", () => {
 // user's own Claude Code permission settings govern each, as for any tool a skill does not
 // pre-approve. Every Markdown, YAML and JSON file the plugin ships is read, not only skills.
 const DIRECTORY_PRE_APPROVABLE = new Set(["Read", "Grep", "Glob", "LS"])
-const PLUGIN_DIR = new URL("../../plugins/qlane/", import.meta.url)
-const shippedFiles = (dir) =>
+const REPO_DIR = new URL("../../", import.meta.url)
+const PLUGIN_DIR = new URL("plugins/qlane/", REPO_DIR)
+const filesUnder = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
     d.isDirectory()
-      ? shippedFiles(new URL(`${d.name}/`, dir))
+      ? filesUnder(new URL(`${d.name}/`, dir))
       : /\.(md|mdx|ya?ml|json)$/i.test(d.name)
         ? [new URL(d.name, dir)]
         : []
   )
+// What the plugin ships, plus the marketplace manifests at the repository root: a marketplace
+// entry can carry commands with their own allowedTools, which Claude Code adds to the plugin.
+const scannedFiles = () => [
+  ...filesUnder(PLUGIN_DIR),
+  ...filesUnder(new URL(".claude-plugin/", REPO_DIR)),
+  ...filesUnder(new URL(".cursor-plugin/", REPO_DIR)),
+]
 // The key in any spelling a parser might honour: allowed-tools, allowed_tools, allowedTools.
 const TOOL_LIST_KEY = /^allowed[-_]?tools$/i
-// A YAML value as one string: the rest of the key's line plus every following line that is
-// indented, blank or a comment, up to the next top-level key. Comments and list dashes are
-// dropped, so a one-line value, a flow list, a block list and a folded value all read the same.
-const yamlValue = (lines, i) => {
-  const parts = [lines[i].slice(lines[i].indexOf(":") + 1)]
-  for (let j = i + 1; j < lines.length && /^(\s|#|-|$)/.test(lines[j]); j++) parts.push(lines[j])
-  return parts
-    .map((l) => l.replace(/(^|\s)#.*$/, "").replace(/^\s*-\s+/, " "))
-    .join(" ")
-    .replace(/[[\]"']/g, " ")
-    .replace(/(^|\s)[>|][+-]?(?=\s|$)/g, " ")
+// Every value under a tool-list key, at any depth, as Claude Code would split it: a list item by
+// item, a string on spaces and commas. Read with a real YAML parser, so quoting, comments, folded
+// values and explicit keys mean exactly what YAML says they mean.
+const toolListsIn = (value, lists) => {
+  if (Array.isArray(value)) value.forEach((v) => toolListsIn(v, lists))
+  else if (value && typeof value === "object")
+    for (const [k, v] of Object.entries(value)) {
+      if (TOOL_LIST_KEY.test(k))
+        lists.push(
+          (Array.isArray(v) ? v.map(String) : String(v ?? "").split(/[\s,]+/)).filter(Boolean)
+        )
+      else toolListsIn(v, lists)
+    }
+  return lists
 }
-const entriesOf = (value) => value.split(/[\s,]+/).filter(Boolean)
+const parsedOf = (file, where) => {
+  // A byte-order mark or Windows line endings must not hide a frontmatter block.
+  const text = readFileSync(file, "utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n")
+  if (/\.json$/i.test(where)) return JSON.parse(text)
+  const source = /\.ya?ml$/i.test(where) ? text : text.match(/^---\n([\s\S]*?)\n---/)?.[1]
+  if (source === undefined) return null
+  try {
+    return loadYaml(source)
+  } catch (e) {
+    // A block nothing can parse is refused rather than skipped: it could hide a list.
+    assert.fail(`${where} has YAML that does not parse: ${String(e.message).split("\n")[0]}`)
+  }
+}
 test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS", () => {
-  const files = shippedFiles(PLUGIN_DIR)
-  assert.ok(files.length >= 5, `expected the plugin's files, found ${files.length}`)
+  const files = scannedFiles()
+  assert.ok(
+    files.length >= 7,
+    `expected the plugin's and marketplaces' files, found ${files.length}`
+  )
   let lists = 0
   for (const file of files) {
-    // A byte-order mark or Windows line endings must not hide a frontmatter block.
-    const text = readFileSync(file, "utf8")
-      .replace(/^\uFEFF/, "")
-      .replace(/\r\n?/g, "\n")
-    const where = file.pathname.slice(PLUGIN_DIR.pathname.length)
-    const found = []
-    // YAML: a Markdown file's frontmatter block, or a whole .yaml/.yml file.
-    const yaml = /\.ya?ml$/i.test(where) ? text : (text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "")
-    const lines = yaml.split("\n")
-    lines.forEach((line, i) => {
-      const key = line.match(/^["']?([A-Za-z_-]+)["']?\s*:/)?.[1]
-      if (key && TOOL_LIST_KEY.test(key)) {
-        found.push(...entriesOf(yamlValue(lines, i)))
-        lists++
+    const where = file.pathname.slice(REPO_DIR.pathname.length)
+    for (const list of toolListsIn(parsedOf(file, where), [])) {
+      lists++
+      for (const entry of list) {
+        assert.ok(
+          DIRECTORY_PRE_APPROVABLE.has(entry),
+          `${where} pre-approves ${entry}; only Read, Grep, Glob and LS are allowed`
+        )
       }
-    })
-    // JSON: the key at any depth.
-    if (/\.json$/i.test(where)) {
-      const walk = (v) => {
-        if (Array.isArray(v)) return v.forEach(walk)
-        if (v && typeof v === "object")
-          for (const [k, x] of Object.entries(v)) {
-            if (TOOL_LIST_KEY.test(k)) {
-              found.push(...(Array.isArray(x) ? x.map(String) : entriesOf(String(x))))
-              lists++
-            } else walk(x)
-          }
-      }
-      walk(JSON.parse(text))
-    }
-    for (const entry of found) {
-      assert.ok(
-        DIRECTORY_PRE_APPROVABLE.has(entry),
-        `plugins/qlane/${where} pre-approves ${entry}; only Read, Grep, Glob and LS are allowed`
-      )
     }
   }
   // The skills do declare lists, so a parser that found none would be checking nothing.
@@ -139,9 +140,6 @@ test("the plugin README says Claude Code may ask before each call a skill makes"
   )
 })
 
-// The bugs skill's read-only rule used to be backed by its grants as well: it pre-approved
-// no tool that writes. With no grants left, the rule's own words are what keeps it, so they are
-// pinned here, with the tools it names.
 // The editor's confirmation of a Qlane write depends on the developer's settings, which the
 // README tells them they may relax, so setup-env must not promise it and must not treat an
 // allowed call as consent.
@@ -155,12 +153,12 @@ test("setup-env asks before every change whether or not the editor also asks", (
     ),
     "setup-env's second-prompt sentence is conditional and keeps the skill's own ask"
   )
-  assert.ok(
-    !text.includes("The editor will also ask"),
-    "setup-env must not promise the editor asks"
-  )
+  assert.doesNotMatch(text, /will also ask/i, "setup-env must not promise the editor asks")
 })
 
+// The bugs skill's read-only rule used to be backed by its grants as well: it pre-approved
+// no tool that writes. With no grants left, the rule's own words are what keeps it, so they are
+// pinned here, with the tools it names.
 test("bugs forbids every Qlane tool that writes or starts work", () => {
   const bugs = skills.find((s) => s.dir === "bugs")
   assert.ok(bugs, "the bugs skill exists")
