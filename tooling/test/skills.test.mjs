@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { readdirSync, readFileSync } from "node:fs"
+import { load as loadYaml } from "js-yaml"
 
 // Every skill under plugins/qlane/skills/, read from disk rather than listed, so a skill added
 // later is checked by every test here without anyone remembering to register it.
@@ -23,67 +24,9 @@ const skills = readdirSync(SKILLS_DIR, { withFileTypes: true })
     return { dir: d.name, text, frontmatter, body: match[2] }
   })
 
-const SERVER_NAME = "qlane"
-// The plugin's one server. Its tools are namespaced `mcp__plugin_<plugin>_<server>__<tool>`,
-// so this name is half of every grant below.
-const SERVER = "qlane"
 // The two regional servers the plugin registered before it had one. No skill may still
-// name either: a grant on one matches nothing, and advice naming one sends the user to a
-// server that is no longer installed.
+// name either: advice naming one sends the user to a server that is no longer installed.
 const RETIRED_SERVERS = ["qlane-eu", "qlane-us"]
-
-// Every tool Qlane MCP serves, as its tools/list names them. A skill that names a
-// tool not on this list is not checked by the grant test below, so a tool the
-// server adds is added here before a skill uses it.
-const TOOLS = [
-  "resolve_project",
-  "list_projects",
-  "get_project",
-  "list_environments",
-  "create_test_plan",
-  "get_test_plan",
-  "list_test_sessions",
-  "get_test_session",
-  "list_defects",
-  "get_test_result",
-  "update_project",
-  "list_source_repositories",
-  "create_project",
-  "get_environment",
-  "create_environment",
-  "update_environment",
-  "request_environment_variables",
-  "request_test_credentials",
-  "start_boot_check",
-  "get_boot_check",
-]
-
-// Tools a skill names on purpose without granting them, each with why. Two reasons
-// recur. Naming a tool in a "never call" rule is how a skill forbids it, and a grant
-// there would pre-approve exactly the call the rule forbids. And a skill that does
-// call a tool that writes leaves it ungranted so the editor's own permission
-// prompt confirms each call a second time, beside the skill's own ask. A tool that
-// only runs work, such as a configuration check or a test plan, is granted.
-const NAMED_NOT_GRANTED = {
-  "setup-env": {
-    create_project:
-      "writes: the editor's prompt confirms it, after the user said no project is theirs",
-    create_environment: "writes: the editor's prompt confirms each test target created",
-    update_environment:
-      "writes: switching a trigger on changes which pull requests start a test run, and linking a repository can register it on a GitLab connection",
-  },
-  bugs: {
-    create_test_plan: "forbidden: the skill is read-only",
-    start_boot_check: "forbidden: the skill is read-only",
-    update_environment: "forbidden: it changes a test target; named in a blocked case's remedy",
-    request_environment_variables: "forbidden: named in a blocked case's remedy only",
-    request_test_credentials: "forbidden: named in a blocked case's remedy only",
-    create_project: "forbidden: the skill is read-only",
-    create_environment: "forbidden: the skill is read-only",
-    update_project: "forbidden: the skill is read-only; named in a blocked case's remedy",
-    get_environment: "named in a blocked case's remedy only; the skill reads no test target",
-  },
-}
 
 /** The shared connection step: from its heading to the next `## ` heading. */
 const connectionStep = (body) => stepOf(body, 0)
@@ -103,18 +46,141 @@ const refusalEntry = (skill) => {
   return entries[0]
 }
 
-const grantsOf = (skill) => new Set((skill.frontmatter["allowed-tools"] ?? "").split(/\s+/))
-const grant = (tool) => `mcp__plugin_${SERVER_NAME}_${SERVER}__${tool}`
-
 test("finds the skills it checks", () => {
   // Every other test here loops over `skills`, so an empty list would pass them all.
   assert.ok(skills.length >= 2, `expected at least two skills, found ${skills.length}`)
-  // An exception list keyed on a skill that does not exist checks nothing.
-  for (const dir of Object.keys(NAMED_NOT_GRANTED)) {
-    assert.ok(
-      skills.some((s) => s.dir === dir),
-      `NAMED_NOT_GRANTED names no skill called ${dir}`
-    )
+})
+
+// Anthropic's directory accepts allowed-tools entries beyond Read, Grep, Glob and LS only from
+// verified organizations (its policy review refused this plugin's earlier versions for them). So
+// nothing in the plugin may pre-approve more than those four, as bare names: no `${...}`, no
+// path and no URL. A skill still calls the Qlane tools and its git, gh and curl commands; the
+// user's own Claude Code permission settings govern each, as for any tool a skill does not
+// pre-approve. Every Markdown, YAML and JSON file the plugin ships is read, not only skills.
+const DIRECTORY_PRE_APPROVABLE = new Set(["Read", "Grep", "Glob", "LS"])
+const REPO_DIR = new URL("../../", import.meta.url)
+const PLUGIN_DIR = new URL("plugins/qlane/", REPO_DIR)
+const filesUnder = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+    d.isDirectory()
+      ? filesUnder(new URL(`${d.name}/`, dir))
+      : /\.(md|mdx|ya?ml|json)$/i.test(d.name)
+        ? [new URL(d.name, dir)]
+        : []
+  )
+// What the plugin ships, plus the marketplace manifests at the repository root: a marketplace
+// entry can carry commands with their own allowedTools, which Claude Code adds to the plugin.
+const scannedFiles = () => [
+  ...filesUnder(PLUGIN_DIR),
+  ...filesUnder(new URL(".claude-plugin/", REPO_DIR)),
+  ...filesUnder(new URL(".cursor-plugin/", REPO_DIR)),
+]
+// The key in any spelling a parser might honour: allowed-tools, allowed_tools, allowedTools.
+const TOOL_LIST_KEY = /^allowed[-_]?tools$/i
+// Every value under a tool-list key, at any depth, as Claude Code would split it: a list item by
+// item, a string on spaces and commas. Read with a real YAML parser, so quoting, comments, folded
+// values and explicit keys mean exactly what YAML says they mean.
+const toolListsIn = (value, lists) => {
+  if (Array.isArray(value)) value.forEach((v) => toolListsIn(v, lists))
+  else if (value && typeof value === "object")
+    for (const [k, v] of Object.entries(value)) {
+      if (TOOL_LIST_KEY.test(k))
+        lists.push(
+          (Array.isArray(v) ? v.map(String) : String(v ?? "").split(/[\s,]+/)).filter(Boolean)
+        )
+      else toolListsIn(v, lists)
+    }
+  return lists
+}
+const parsedOf = (file, where) => {
+  // A byte-order mark or Windows line endings must not hide a frontmatter block.
+  const text = readFileSync(file, "utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n")
+  if (/\.json$/i.test(where)) return JSON.parse(text)
+  const source = /\.ya?ml$/i.test(where) ? text : text.match(/^---\n([\s\S]*?)\n---/)?.[1]
+  if (source === undefined) return null
+  try {
+    return loadYaml(source)
+  } catch (e) {
+    // A block nothing can parse is refused rather than skipped: it could hide a list.
+    assert.fail(`${where} has YAML that does not parse: ${String(e.message).split("\n")[0]}`)
+  }
+}
+test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS", () => {
+  const files = scannedFiles()
+  assert.ok(
+    files.length >= 7,
+    `expected the plugin's and marketplaces' files, found ${files.length}`
+  )
+  let lists = 0
+  for (const file of files) {
+    const where = file.pathname.slice(REPO_DIR.pathname.length)
+    for (const list of toolListsIn(parsedOf(file, where), [])) {
+      lists++
+      for (const entry of list) {
+        assert.ok(
+          DIRECTORY_PRE_APPROVABLE.has(entry),
+          `${where} pre-approves ${entry}; only Read, Grep, Glob and LS are allowed`
+        )
+      }
+    }
+  }
+  // The skills do declare lists, so a parser that found none would be checking nothing.
+  assert.ok(lists >= skills.length, `expected an allowed-tools list per skill, found ${lists}`)
+})
+
+// With nothing beyond the read-only tools pre-approved, a user may be asked before each call a
+// skill makes; the plugin README says so, in the wording approved for it.
+test("the plugin README says Claude Code may ask before each call a skill makes", () => {
+  const readme = readFileSync(new URL("README.md", PLUGIN_DIR), "utf8").replace(/\s+/g, " ")
+  assert.ok(
+    readme.includes(
+      "Depending on your permission settings, Claude Code may ask before each Qlane tool call and each git, GitHub CLI or curl command a skill runs. To skip those prompts, allow them in your own Claude Code permission settings."
+    ),
+    "plugins/qlane/README.md must say Claude Code may ask before each call"
+  )
+})
+
+// The editor's confirmation of a Qlane write depends on the developer's settings, which the
+// README tells them they may relax, so setup-env must not promise it and must not treat an
+// allowed call as consent.
+test("setup-env asks before every change whether or not the editor also asks", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const text = setup.body.replace(/\s+/g, " ")
+  assert.ok(
+    text.includes(
+      "Depending on the developer's permission settings, the editor may also ask to confirm each of those Qlane calls; if it does, that second prompt is deliberate. An allowed call is never the developer's yes: ask first either way."
+    ),
+    "setup-env's second-prompt sentence is conditional and keeps the skill's own ask"
+  )
+  assert.doesNotMatch(text, /will also ask/i, "setup-env must not promise the editor asks")
+})
+
+// The bugs skill's read-only rule used to be backed by its grants as well: it pre-approved
+// no tool that writes. With no grants left, the rule's own words are what keeps it, so they are
+// pinned here, with the tools it names.
+test("bugs forbids every Qlane tool that writes or starts work", () => {
+  const bugs = skills.find((s) => s.dir === "bugs")
+  assert.ok(bugs, "the bugs skill exists")
+  const rule = bugs.body
+    .split("\n")
+    .find((l) => l.startsWith("**This skill only reads from Qlane.**"))
+  assert.ok(rule, "bugs keeps its read-only rule")
+  assert.ok(
+    rule.includes("Never call a tool that writes or starts work"),
+    "bugs' read-only rule forbids, not permits"
+  )
+  for (const tool of [
+    "create_test_plan",
+    "start_boot_check",
+    "update_environment",
+    "update_project",
+    "create_project",
+    "create_environment",
+    "request_environment_variables",
+    "request_test_credentials",
+  ]) {
+    assert.ok(rule.includes(`\`${tool}\``), `bugs' read-only rule names ${tool}`)
   }
 })
 
@@ -171,58 +237,6 @@ test("the connection step says which organization is connected, when the user is
     assert.match(step, /\*\*Which organization\.\*\*/, at)
     assert.match(step, /one organization at a time/, at)
     assert.match(step, /say which organization is connected/, at)
-  }
-})
-
-test("every tool a skill names is granted, unless it is named to forbid it", () => {
-  for (const s of skills) {
-    const grants = grantsOf(s)
-    const exceptions = NAMED_NOT_GRANTED[s.dir] ?? {}
-    // The connection step names tools only to say what a connected server looks like.
-    const body = s.body.replace(connectionStep(s.body), "")
-    const named = TOOLS.filter((t) => new RegExp(`\\b${t}\\b`).test(body))
-    assert.ok(named.length > 0, `plugins/qlane/skills/${s.dir} names no Qlane tool`)
-    for (const tool of named) {
-      const g = grant(tool)
-      if (tool in exceptions) {
-        assert.ok(
-          !grants.has(g),
-          `plugins/qlane/skills/${s.dir} grants ${g}, which it names only to forbid`
-        )
-      } else {
-        assert.ok(grants.has(g), `plugins/qlane/skills/${s.dir} is missing grant ${g}`)
-      }
-    }
-    // An exception for a tool the skill no longer names would silence nothing.
-    for (const tool of Object.keys(exceptions)) {
-      assert.ok(
-        named.includes(tool),
-        `plugins/qlane/skills/${s.dir} exception for ${tool}, which it does not name`
-      )
-    }
-  }
-})
-
-// A plugin-bundled server's tools are namespaced `mcp__plugin_<plugin>_<server>__<tool>`,
-// so renaming a server silently invalidates every grant naming it. Nothing else notices:
-// a grant that matches nothing is not an error, it just brings back the permission
-// prompts its author believed were suppressed.
-test("every Qlane grant is a real tool, in the one server's namespace", () => {
-  for (const s of skills) {
-    const qlane = [...grantsOf(s)].filter((g) => g.startsWith(`mcp__plugin_${SERVER_NAME}_`))
-    // Without this, a skill whose grants were all deleted would pass the loop below.
-    assert.ok(qlane.length > 0, `plugins/qlane/skills/${s.dir} grants no Qlane tool`)
-    for (const g of qlane) {
-      const m = g.match(/^mcp__plugin_qlane_qlane__([a-z_]+)$/)
-      // The retired regional namespaces, `mcp__plugin_qlane_qlane-eu__…` and
-      // `mcp__plugin_qlane_qlane-us__…`, fail here: left behind they match nothing, so
-      // they are invisible except that they do not work.
-      assert.ok(m, `plugins/qlane/skills/${s.dir} grant ${g} is not in the server's namespace`)
-      assert.ok(
-        TOOLS.includes(m[1]),
-        `plugins/qlane/skills/${s.dir} grants ${m[1]}, which is not a Qlane tool`
-      )
-    }
   }
 })
 
@@ -417,20 +431,18 @@ test("setup-env step 1 finds an existing URL target before offering another", ()
 // Anthropic's directory asks whether any skill sends data to a service other than the
 // declared connectors, and its security scan fails a version that contacts somewhere the
 // README does not disclose. So every outside service a skill reaches is named in the
-// plugin README's "What it sends, and where" section: each host a skill names, in its
-// granted commands or in its instructions, and GitHub whenever a skill may run the GitHub
-// CLI. Derived from the skills, so a skill that gains a new destination fails here until
+// plugin README's "What it sends, and where" section: each host a skill's instructions
+// name, and GitHub whenever a skill may run the GitHub CLI. Derived from the skills, so a skill that gains a new destination fails here until
 // the README says so.
 test("the plugin README discloses every outside service a skill reaches", () => {
   const readme = readFileSync(new URL("../../plugins/qlane/README.md", import.meta.url), "utf8")
   const section = readme.split("## What it sends, and where")[1]?.split("\n## ")[0]
   assert.ok(section, "plugins/qlane/README.md must have a 'What it sends, and where' section")
-  const granted = skills.map((s) => s.frontmatter["allowed-tools"] ?? "").join(" ")
-  const named = [granted, ...skills.map((s) => s.body)].join("\n")
+  const named = skills.map((s) => s.body).join("\n")
   const hosts = new Set([...named.matchAll(/https?:\/\/([^/\s)`"<>]+)/g)].map((m) => m[1]))
   assert.ok(hosts.size > 0, "expected at least one named host (docs.qlane.ai)")
   for (const host of hosts) assert.ok(section.includes(host), `README does not disclose ${host}`)
-  if (/Bash\(gh /.test(granted)) {
+  if (/\bgh (pr|api|repo|run|issue|release|workflow|auth)\b/.test(named)) {
     assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
   }
 })
@@ -541,8 +553,8 @@ test("setup-env reads a remote URL with its credential stripped", async () => {
     step1,
     /\*\*Never send or repeat anything before `@` in an `https:\/\/` remote URL\*\*/
   )
-  // A denied prompt or a shell without sed must not fall back to the bare command, which
-  // `Bash(git remote:*)` pre-approves and which prints the credential.
+  // A denied prompt or a shell without sed must not fall back to the bare command, which a user
+  // may have allowed in their own settings and which prints the credential.
   assert.match(
     step1,
     /If that command can't run, don't run `git remote get-url` on its own; ask the developer for owner\/name\./

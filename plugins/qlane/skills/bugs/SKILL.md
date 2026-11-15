@@ -3,7 +3,7 @@ name: bugs
 description: Show what Qlane found on a pull request or a recent test run — defects, failing and blocked cases, the steps to reproduce them and their evidence — then locate the likely cause in this repository and propose a fix. Read-only on Qlane, and edits nothing without a yes. Use when the user asks what Qlane found, about Qlane results or bugs, about a failed Qlane check on a pull request, or what to fix — including plain requests in a repository connected to Qlane that do not name it, such as "check the results of the test", "what did the tests find", "what did qlane find", "show me the bugs from the last run" or "why did the tests fail on my PR".
 license: MIT
 compatibility: Requires git and a Qlane account. The GitHub CLI is optional; without it, ask for the pull request number.
-allowed-tools: mcp__plugin_qlane_qlane__resolve_project mcp__plugin_qlane_qlane__list_projects mcp__plugin_qlane_qlane__list_test_sessions mcp__plugin_qlane_qlane__get_test_session mcp__plugin_qlane_qlane__list_defects mcp__plugin_qlane_qlane__get_test_result Bash(git remote:*) Bash(git rev-parse:*) Bash(git log:*) Bash(gh pr view:*) Read Grep Glob
+allowed-tools: Read Grep Glob
 ---
 
 # What Qlane found

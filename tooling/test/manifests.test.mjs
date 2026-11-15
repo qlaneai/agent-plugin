@@ -209,7 +209,7 @@ test("every plugin manifest declares the same plugin name and version", () => {
   // only ["name"], and .claude-plugin/plugin.json is validated by nothing.
   // The name half needs no such pin: a test below anchors plugin.json's name to the
   // literal, which transitively pins the other sides through these agreement lines.
-  assert.equal(read(PORTABLE_MANIFEST).version, "0.7.0")
+  assert.equal(read(PORTABLE_MANIFEST).version, "0.7.1")
   for (const f of [CLAUDE_MANIFEST, CURSOR_MANIFEST]) {
     assert.equal(read(f).name, read(PORTABLE_MANIFEST).name, `${f} name`)
     assert.equal(read(f).version, read(PORTABLE_MANIFEST).version, `${f} version`)
@@ -383,8 +383,8 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   // to tidy them into agreement:
   //
   //   - The PLUGIN must stay `qlane` because it has to match MCP_SERVER_NAME in the
-  //     main Qlane repo, and because it is half of the tool namespace every skill
-  //     grants against: `mcp__plugin_qlane_<server>__<tool>`.
+  //     main Qlane repo, and because it is half of the namespace every Qlane tool
+  //     a skill calls is named in: `mcp__plugin_qlane_<server>__<tool>`.
   //   - The MARKETPLACE is therefore the half free to move, and it is suffixed so
   //     `qlane@qlane-plugin` reads as "the qlane plugin, from the qlane-plugin
   //     marketplace" rather than the self-referential `qlane@qlane`.
