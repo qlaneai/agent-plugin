@@ -383,8 +383,8 @@ test("the marketplace is named `qlane-plugin`, so `qlane@qlane-plugin` installs"
   // to tidy them into agreement:
   //
   //   - The PLUGIN must stay `qlane` because it has to match MCP_SERVER_NAME in the
-  //     main Qlane repo, and because it is half of the tool namespace every skill
-  //     grants against: `mcp__plugin_qlane_<server>__<tool>`.
+  //     main Qlane repo, and because it is half of the namespace every Qlane tool
+  //     a skill calls is named in: `mcp__plugin_qlane_<server>__<tool>`.
   //   - The MARKETPLACE is therefore the half free to move, and it is suffixed so
   //     `qlane@qlane-plugin` reads as "the qlane plugin, from the qlane-plugin
   //     marketplace" rather than the self-referential `qlane@qlane`.

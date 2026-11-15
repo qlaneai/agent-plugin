@@ -24,8 +24,7 @@ const skills = readdirSync(SKILLS_DIR, { withFileTypes: true })
   })
 
 // The two regional servers the plugin registered before it had one. No skill may still
-// name either: a grant on one matches nothing, and advice naming one sends the user to a
-// server that is no longer installed.
+// name either: advice naming one sends the user to a server that is no longer installed.
 const RETIRED_SERVERS = ["qlane-eu", "qlane-us"]
 
 /** The shared connection step: from its heading to the next `## ` heading. */
@@ -52,44 +51,62 @@ test("finds the skills it checks", () => {
 })
 
 // Anthropic's directory accepts allowed-tools entries beyond Read, Grep, Glob and LS only from
-// verified organizations, and refused 0.6.6 and 0.6.8 for them. So nothing in the plugin may
-// pre-approve more than those four, as bare names: no `${...}`, no path and no URL. A skill
-// still calls the Qlane tools and its git, gh and curl commands; Claude Code asks the user's
-// own permission settings for each, as for any tool a skill does not pre-approve. Every
-// Markdown and JSON file the plugin ships is read, not only skills, so a command or agent
-// added later is held to the same rule.
+// verified organizations (its policy review refused this plugin's earlier versions for them). So
+// nothing in the plugin may pre-approve more than those four, as bare names: no `${...}`, no
+// path and no URL. A skill still calls the Qlane tools and its git, gh and curl commands; the
+// user's own Claude Code permission settings govern each, as for any tool a skill does not
+// pre-approve. Every Markdown, YAML and JSON file the plugin ships is read, not only skills.
 const DIRECTORY_PRE_APPROVABLE = new Set(["Read", "Grep", "Glob", "LS"])
 const PLUGIN_DIR = new URL("../../plugins/qlane/", import.meta.url)
 const shippedFiles = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
     d.isDirectory()
       ? shippedFiles(new URL(`${d.name}/`, dir))
-      : /\.(md|json)$/.test(d.name)
+      : /\.(md|mdx|ya?ml|json)$/i.test(d.name)
         ? [new URL(d.name, dir)]
         : []
   )
+// The key in any spelling a parser might honour: allowed-tools, allowed_tools, allowedTools.
+const TOOL_LIST_KEY = /^allowed[-_]?tools$/i
+// A YAML value as one string: the rest of the key's line plus every following line that is
+// indented, blank or a comment, up to the next top-level key. Comments and list dashes are
+// dropped, so a one-line value, a flow list, a block list and a folded value all read the same.
+const yamlValue = (lines, i) => {
+  const parts = [lines[i].slice(lines[i].indexOf(":") + 1)]
+  for (let j = i + 1; j < lines.length && /^(\s|#|$)/.test(lines[j]); j++) parts.push(lines[j])
+  return parts
+    .map((l) => l.replace(/(^|\s)#.*$/, "").replace(/^\s*-\s+/, " "))
+    .join(" ")
+    .replace(/[[\]"']/g, " ")
+}
+const entriesOf = (value) => value.split(/[\s,]+/).filter(Boolean)
 test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS", () => {
   const files = shippedFiles(PLUGIN_DIR)
   assert.ok(files.length >= 5, `expected the plugin's files, found ${files.length}`)
   let lists = 0
   for (const file of files) {
-    const text = readFileSync(file, "utf8")
+    // A byte-order mark or Windows line endings must not hide a frontmatter block.
+    const text = readFileSync(file, "utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n")
     const where = file.pathname.slice(PLUGIN_DIR.pathname.length)
     const found = []
-    // Frontmatter: `allowed-tools:` or `allowedTools:` on one line, or as a YAML list.
-    const fm = text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? ""
-    for (const m of fm.matchAll(/^(allowed-tools|allowedTools):[ \t]*(.*)$((?:\n[ \t]*-.*)*)/gm)) {
-      found.push(...`${m[2]} ${m[3].replace(/^\s*-\s*/gm, " ")}`.split(/[\s,]+/).filter(Boolean))
-      lists++
-    }
-    // JSON: any `allowedTools` or `allowed-tools` key, at any depth.
-    if (file.pathname.endsWith(".json")) {
+    // YAML: a Markdown file's frontmatter block, or a whole .yaml/.yml file.
+    const yaml = /\.ya?ml$/i.test(where) ? text : (text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "")
+    const lines = yaml.split("\n")
+    lines.forEach((line, i) => {
+      const key = line.match(/^([A-Za-z_-]+)\s*:/)?.[1]
+      if (key && TOOL_LIST_KEY.test(key)) {
+        found.push(...entriesOf(yamlValue(lines, i)))
+        lists++
+      }
+    })
+    // JSON: the key at any depth.
+    if (/\.json$/i.test(where)) {
       const walk = (v) => {
         if (Array.isArray(v)) return v.forEach(walk)
         if (v && typeof v === "object")
           for (const [k, x] of Object.entries(v)) {
-            if (k === "allowedTools" || k === "allowed-tools") {
-              found.push(...(Array.isArray(x) ? x : String(x).split(/[\s,]+/)).filter(Boolean))
+            if (TOOL_LIST_KEY.test(k)) {
+              found.push(...(Array.isArray(x) ? x.map(String) : entriesOf(String(x))))
               lists++
             } else walk(x)
           }
@@ -103,7 +120,13 @@ test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS",
       )
     }
   }
-  // With nothing pre-approved, a user may be asked before each call; the README says so.
+  // The skills do declare lists, so a parser that found none would be checking nothing.
+  assert.ok(lists >= skills.length, `expected an allowed-tools list per skill, found ${lists}`)
+})
+
+// With nothing beyond the read-only tools pre-approved, a user may be asked before each call a
+// skill makes; the plugin README says so, in the wording approved for it.
+test("the plugin README says Claude Code may ask before each call a skill makes", () => {
   const readme = readFileSync(new URL("README.md", PLUGIN_DIR), "utf8").replace(/\s+/g, " ")
   assert.ok(
     readme.includes(
@@ -111,8 +134,28 @@ test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS",
     ),
     "plugins/qlane/README.md must say Claude Code may ask before each call"
   )
-  // The skills do declare lists, so a parser that found none would be checking nothing.
-  assert.ok(lists >= skills.length, `expected an allowed-tools list per skill, found ${lists}`)
+})
+
+// The bugs skill's read-only rule used to be backed by its grants as well: it pre-approved
+// no tool that writes. With no grants left, the rule's own words are what keeps it, so they are
+// pinned here, with the tools it names.
+test("bugs forbids every Qlane tool that writes or starts work", () => {
+  const bugs = skills.find((s) => s.dir === "bugs")
+  assert.ok(bugs, "the bugs skill exists")
+  const rule = bugs.body
+    .split("\n")
+    .find((l) => l.startsWith("**This skill only reads from Qlane.**"))
+  assert.ok(rule, "bugs keeps its read-only rule")
+  for (const tool of [
+    "create_test_plan",
+    "start_boot_check",
+    "update_environment",
+    "update_project",
+    "create_project",
+    "create_environment",
+  ]) {
+    assert.ok(rule.includes(`\`${tool}\``), `bugs' read-only rule names ${tool}`)
+  }
 })
 
 test("every skill's frontmatter names it after its directory and describes it", () => {
@@ -373,7 +416,7 @@ test("the plugin README discloses every outside service a skill reaches", () => 
   const hosts = new Set([...named.matchAll(/https?:\/\/([^/\s)`"<>]+)/g)].map((m) => m[1]))
   assert.ok(hosts.size > 0, "expected at least one named host (docs.qlane.ai)")
   for (const host of hosts) assert.ok(section.includes(host), `README does not disclose ${host}`)
-  if (/`gh /.test(named)) {
+  if (/\bgh (pr|api|repo|run|issue|release|workflow|auth)\b/.test(named)) {
     assert.ok(section.includes("GitHub CLI"), "a skill may run gh; README must disclose GitHub")
   }
 })
@@ -484,8 +527,8 @@ test("setup-env reads a remote URL with its credential stripped", async () => {
     step1,
     /\*\*Never send or repeat anything before `@` in an `https:\/\/` remote URL\*\*/
   )
-  // A denied prompt or a shell without sed must not fall back to the bare command, which
-  // `Bash(git remote:*)` pre-approves and which prints the credential.
+  // A denied prompt or a shell without sed must not fall back to the bare command, which a user
+  // may have allowed in their own settings and which prints the credential.
   assert.match(
     step1,
     /If that command can't run, don't run `git remote get-url` on its own; ask the developer for owner\/name\./

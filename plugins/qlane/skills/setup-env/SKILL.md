@@ -14,7 +14,7 @@ Qlane tests a pull request by running the application in a **test target** — a
 
 **Values never pass through you.** Variable values and test-credential passwords are entered by the developer on a Qlane page, never sent through a tool, typed into chat or written to a file. If the developer pastes a value into the chat, do not use it: send the link instead, and say the value is now in the chat transcript and should be rotated. Never read `.env` — it puts its values in your context — and never commit a `.env` or write a real value into a tracked file.
 
-**Ask before every change to the repository or to Qlane's configuration.** Creating a project or a test target, pushing to the repository and switching pull-request testing on each need their own yes. The editor will also ask you to confirm each of those Qlane calls; that second prompt is deliberate. Running a configuration check is part of the job, not a change: start one when the push it depends on has landed, and say that you are starting it.
+**Ask before every change to the repository or to Qlane's configuration.** Creating a project or a test target, pushing to the repository and switching pull-request testing on each need their own yes. Depending on the developer's permission settings, the editor may also ask to confirm each of those Qlane calls; if it does, that second prompt is deliberate. An allowed call is never the developer's yes: ask first either way. Running a configuration check is part of the job, not a change: start one when the push it depends on has landed, and say that you are starting it.
 
 **Fetch the requirements; never restate them from memory.** They change, and the page is the only version that is current.
 
