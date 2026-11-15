@@ -49,7 +49,7 @@ The version lives in the plugin's manifests only. The marketplace entry delibera
 `version` of its own: `plugin.json` wins at install time, so a second copy could only ever
 agree or be silently ignored.
 
-**No manifest may contain a placeholder.** Both regional URLs are literal strings in every
+**No manifest may contain a placeholder.** The server's URL is a literal string in every
 manifest. `${user_config.*}` resolves only in the Claude Code CLI — the portable Agent Plugins
 schema cannot even express `userConfig` (`additionalProperties: false`), and claude.ai treats
 an MCP `url` as an opaque connector identity, so a templated host reaches registration verbatim

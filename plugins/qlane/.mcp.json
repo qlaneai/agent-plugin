@@ -1,12 +1,8 @@
 {
   "mcpServers": {
-    "qlane-eu": {
+    "qlane": {
       "type": "http",
-      "url": "https://mcp-eu.qlane.ai/api/mcp"
-    },
-    "qlane-us": {
-      "type": "http",
-      "url": "https://mcp-us.qlane.ai/api/mcp"
+      "url": "https://mcp.qlane.ai/mcp"
     }
   }
 }
