@@ -73,11 +73,12 @@ const TOOL_LIST_KEY = /^allowed[-_]?tools$/i
 // dropped, so a one-line value, a flow list, a block list and a folded value all read the same.
 const yamlValue = (lines, i) => {
   const parts = [lines[i].slice(lines[i].indexOf(":") + 1)]
-  for (let j = i + 1; j < lines.length && /^(\s|#|$)/.test(lines[j]); j++) parts.push(lines[j])
+  for (let j = i + 1; j < lines.length && /^(\s|#|-|$)/.test(lines[j]); j++) parts.push(lines[j])
   return parts
     .map((l) => l.replace(/(^|\s)#.*$/, "").replace(/^\s*-\s+/, " "))
     .join(" ")
     .replace(/[[\]"']/g, " ")
+    .replace(/(^|\s)[>|][+-]?(?=\s|$)/g, " ")
 }
 const entriesOf = (value) => value.split(/[\s,]+/).filter(Boolean)
 test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS", () => {
@@ -86,14 +87,16 @@ test("nothing in the plugin pre-approves a tool beyond Read, Grep, Glob and LS",
   let lists = 0
   for (const file of files) {
     // A byte-order mark or Windows line endings must not hide a frontmatter block.
-    const text = readFileSync(file, "utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n")
+    const text = readFileSync(file, "utf8")
+      .replace(/^\uFEFF/, "")
+      .replace(/\r\n?/g, "\n")
     const where = file.pathname.slice(PLUGIN_DIR.pathname.length)
     const found = []
     // YAML: a Markdown file's frontmatter block, or a whole .yaml/.yml file.
     const yaml = /\.ya?ml$/i.test(where) ? text : (text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "")
     const lines = yaml.split("\n")
     lines.forEach((line, i) => {
-      const key = line.match(/^([A-Za-z_-]+)\s*:/)?.[1]
+      const key = line.match(/^["']?([A-Za-z_-]+)["']?\s*:/)?.[1]
       if (key && TOOL_LIST_KEY.test(key)) {
         found.push(...entriesOf(yamlValue(lines, i)))
         lists++
@@ -139,6 +142,25 @@ test("the plugin README says Claude Code may ask before each call a skill makes"
 // The bugs skill's read-only rule used to be backed by its grants as well: it pre-approved
 // no tool that writes. With no grants left, the rule's own words are what keeps it, so they are
 // pinned here, with the tools it names.
+// The editor's confirmation of a Qlane write depends on the developer's settings, which the
+// README tells them they may relax, so setup-env must not promise it and must not treat an
+// allowed call as consent.
+test("setup-env asks before every change whether or not the editor also asks", () => {
+  const setup = skills.find((s) => s.dir === "setup-env")
+  assert.ok(setup, "the setup-env skill exists")
+  const text = setup.body.replace(/\s+/g, " ")
+  assert.ok(
+    text.includes(
+      "Depending on the developer's permission settings, the editor may also ask to confirm each of those Qlane calls; if it does, that second prompt is deliberate. An allowed call is never the developer's yes: ask first either way."
+    ),
+    "setup-env's second-prompt sentence is conditional and keeps the skill's own ask"
+  )
+  assert.ok(
+    !text.includes("The editor will also ask"),
+    "setup-env must not promise the editor asks"
+  )
+})
+
 test("bugs forbids every Qlane tool that writes or starts work", () => {
   const bugs = skills.find((s) => s.dir === "bugs")
   assert.ok(bugs, "the bugs skill exists")
@@ -146,6 +168,10 @@ test("bugs forbids every Qlane tool that writes or starts work", () => {
     .split("\n")
     .find((l) => l.startsWith("**This skill only reads from Qlane.**"))
   assert.ok(rule, "bugs keeps its read-only rule")
+  assert.ok(
+    rule.includes("Never call a tool that writes or starts work"),
+    "bugs' read-only rule forbids, not permits"
+  )
   for (const tool of [
     "create_test_plan",
     "start_boot_check",
@@ -153,6 +179,8 @@ test("bugs forbids every Qlane tool that writes or starts work", () => {
     "update_project",
     "create_project",
     "create_environment",
+    "request_environment_variables",
+    "request_test_credentials",
   ]) {
     assert.ok(rule.includes(`\`${tool}\``), `bugs' read-only rule names ${tool}`)
   }
